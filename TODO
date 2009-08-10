@@ -1,0 +1,6 @@
+A few things to do, if anybody cares enough about a simple paste util:
+ - Add paste url to clipboard automatically, using xclip or dbus
+ - Generalize for multiple pastebins, and fallback
+    fpaste.py, dpaste.com, etc.
+ - Keep a cookiejar
+ - Refactor for easier reuse

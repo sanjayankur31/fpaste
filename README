@@ -1,0 +1,35 @@
+What?
+===========
+fpaste is command-line frontend for the Fedora Pastebin service at fpaste.org.
+It allows easy uploading of multiple files, or of copy&pasted text from stdin,
+without requiring a web browser. A unique fpaste link is returned, which can
+then be given to others who are offering help.
+
+e.g.:
+[joeuser@localhost ~]$ fpaste /etc/httpd/conf/httpd.conf
+Uploading...
+http://fpaste.org/LuoG/
+
+
+Why?
+====
+1) PRIMARY: users don't like being flooded with large amounts of text, and
+   encourage the use of pastebin sites & utilities instead.
+2) A GUI browser like firefox might be inaccessible.
+3) A TUI browser like lynx might be too cumbersome.
+4) Multiple files can be fpasted.
+5) It's often faster & more convenient to use the cli than to copy/paste in a
+   browser's textarea.
+6) Why not?
+
+
+Who?
+====
+fpaste maintainer:
+    Jason 'zcat' Farrell <farrellj a gmail.com>
+Server-side fpaste.org ninja:
+    Jonathan 'daMaestro' Steffan <jon a fedoraunity.org>
+Mr. FUPT - http://fedorasolved.org/Members/khaytsus/fedora-unity-paste-tool
+    Walter 'Khaytsus' Francis <wally a theblackmoor.net>
+Inspiration from ye olde bash script. R.I.P. rafb.net/paste
+    Ignacio Vazquez-Abrams <ivazqueznet a gmail.com>

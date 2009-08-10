@@ -1,0 +1,16 @@
+fpaste ChangeLog
+
+0.3.1
+=====
+ *) Initial public release
+ *) Added COPYING/README/TODO
+ *) Only show all language options when '-l list' is used to keep usage compact
+
+0.3.0
+=====
+ *) Modified for fpaste.org
+ *) Added --pasteself option
+
+0.1 - 0.2
+=========
+ *) R.I.P. rafb.net/paste

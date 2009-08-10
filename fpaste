@@ -1,0 +1,114 @@
+#!/usr/bin/env python
+'''fpaste - a cli frontend for the fpaste.org pastebin'''
+#
+# Copyright 2008, 2009 Fedora Unity Project (http://fedoraunity.org)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+VERSION='0.3.1'
+
+import os, sys, urllib
+from optparse import OptionParser
+
+def paste(options, args):
+    '''send file(s)+stdin to fpaste.org'''
+    if options.pasteself:
+        args = [sys.argv[0]]     # override all other file args for this case
+        options.lang = 'python'
+        options.nick = 'Fedora Unity'
+    fileargs = args
+    if not options.fullpath:
+        fileargs = [os.path.basename(x) for x in args]  # remove potentially non-anonymous path info from file path descriptions
+
+    text = ""
+    if not args:   # read from stdin if no file args supplied
+        if not options.desc:
+            options.desc = 'stdin'
+        text += sys.stdin.read()
+    else:
+        if not options.desc:
+            options.desc = '%s' % (' + '.join(fileargs))
+        else:
+            options.desc = '%s: %s' % (options.desc, ' + '.join(fileargs))
+        for i, f in enumerate(args):
+            if not os.access(f, os.R_OK):
+                parser.error("file '%s' is not readable" % f)
+            if (len(args) > 1):     # separate multiple files with header
+                text += '#' * 70 + '\n'
+                text += '# nopaste file %d of %d: %s\n' % (i+1, len(args), f)
+                text += '#' * 70 + '\n'
+            text += open(f).read()
+
+    #print text,
+    #params = urllib.urlencode({'desc': options.desc, 'nick': options.nick, 'lang': options.lang, 'cvt_tabs': options.tabs, 'text': text})
+    params = urllib.urlencode({'title': options.desc, 'author': options.nick, 'lexer': options.lang, 'content': text, 'expire_options': options.expires})
+    print >> sys.stderr, "Uploading..."
+    try:
+        #f = urllib.urlopen('http://rafb.net/paste/paste.php', params)
+        f = urllib.urlopen('http://fpaste.org/', params)
+    except IOError, e: 
+        print >> sys.stderr, "Error uploading: %s" % e
+        return 1
+
+    url = f.geturl()
+    rcode = f.getcode()
+    if rcode != 200:
+        print >> sys.stderr, "SERVER ERROR: %d" % rcode
+        if rcode == 500:
+            print >> sys.stderr, "500 often means your paste was too large. You tried uploading %dKiB" % (len(params)/1024)
+        return int(rcode/10)
+    else:
+        print url
+
+    if options.pasteself:
+        print >> sys.stderr, "quickget:   mkdir -p ~/bin; curl " + url + "raw/ -o ~/bin/fpaste.py && chmod +x ~/bin/fpaste.py"
+    return 0
+
+
+if __name__ == "__main__":
+    validExpiresOpts = ['3600', '10800', '43200', '86400']
+    validSyntaxOpts = ['abap', 'antlr', 'antlr-as', 'antlr-cpp', 'antlr-csharp', 'antlr-java', 'antlr-objc', 'antlr-perl', 'antlr-python', 'antlr-ruby', 'apacheconf', 'applescript', 'as', 'as3', 'aspx-cs', 'aspx-vb', 'basemake', 'bash', 'bat', 'bbcode', 'befunge', 'boo', 'brainfuck', 'c', 'c-objdump', 'cheetah', 'clojure', 'common-lisp', 'console', 'control', 'cpp', 'cpp-objdump', 'csharp', 'css', 'css+django', 'css+erb', 'css+genshitext', 'css+mako', 'css+myghty', 'css+php', 'css+smarty', 'cython', 'd', 'd-objdump', 'delphi', 'diff', 'django', 'dpatch', 'dylan', 'erb', 'erl', 'erlang', 'evoque', 'fortran', 'gas', 'genshi', 'genshitext', 'glsl', 'gnuplot', 'groff', 'haskell', 'html', 'html+cheetah', 'html+django', 'html+evoque', 'html+genshi', 'html+mako', 'html+myghty', 'html+php', 'html+smarty', 'ini', 'io', 'irc', 'java', 'js', 'js+cheetah', 'js+django', 'js+erb', 'js+genshitext', 'js+mako', 'js+myghty', 'js+php', 'js+smarty', 'jsp', 'lhs', 'lighty', 'llvm', 'logtalk', 'lua', 'make', 'mako', 'matlab', 'matlabsession', 'minid', 'modelica', 'moocode', 'mupad', 'mxml', 'myghty', 'mysql', 'nasm', 'newspeak', 'nginx', 'numpy', 'objdump', 'objective-c', 'ocaml', 'perl', 'php', 'pot', 'pov', 'prolog', 'py3tb', 'pycon', 'pytb', 'python', 'python3', 'ragel', 'ragel-c', 'ragel-cpp', 'ragel-d', 'ragel-em', 'ragel-java', 'ragel-objc', 'ragel-ruby', 'raw', 'rb', 'rbcon', 'rebol', 'redcode', 'rhtml', 'rst', 'scala', 'scheme', 'smalltalk', 'smarty', 'sourceslist', 'splus', 'sql', 'sqlite3', 'squidconf', 'tcl', 'tcsh', 'tex', 'text', 'trac-wiki', 'vala', 'vb.net', 'vim', 'xml', 'xml+cheetah', 'xml+django', 'xml+erb', 'xml+evoque', 'xml+mako', 'xml+myghty', 'xml+php', 'xml+smarty', 'xslt', 'yaml']
+    #ext2lang_map = {}
+    usage = """\
+usage: %prog [OPTION]... [FILE]...
+  Posts a file(s) to http://fpaste.org/ and returns the URL.
+  If no file arguments are given, input is expected on stdin.
+
+Examples:
+  %prog foo.txt
+  ifconfig | %prog -d "my network config"
+  %prog -n codemonkey -d "problem with foo" mycode.py"""
+    parser = OptionParser(usage=usage, version='%prog '+VERSION)
+    parser.add_option('-n', dest='nick', help='your nickname; default is "%default"', metavar='"NICKNAME"')
+    parser.add_option('-d', dest='desc', help='description of paste; default appends filename(s)', metavar='"DESCRIPTION"')
+    #parser.add_option('-l', dest='lang', help='language of the content to use for proper syntax highlighting; default is "%default". ' + ' valid languages are: ' + ', '.join(validSyntaxOpts), metavar='"LANGUAGE"')
+    parser.add_option('-l', dest='lang', help='language of the content to use for proper syntax highlighting; default is "%default"; Use "list" as parameter to show all ' + str(len(validSyntaxOpts)) + ' supported languages.', metavar='"LANGUAGE"')
+    #parser.add_option('-t', dest='tabs', help='convert tabs to NUMBER spaces; default is "%default". ' + 'valid options: ' + ', '.join(validtabsopts), metavar='NUMBER')
+    parser.add_option('-x', dest='expires', help='time before paste is removed; default is "%default" seconds. valid options: ' + ', '.join(validExpiresOpts), metavar='"EXPIRES"')
+    parser.add_option('', '--fullpath', dest='fullpath', help='use fullpaths instead of trailing basenames for file descriptions. i.e.: "/home/johnsmith/src/foo.py" instead of "foo.py"', action="store_true", default=False)
+    parser.add_option('-p', '--pasteself', dest='pasteself', help='paste this script itself', action="store_true", default=False)
+
+    parser.set_defaults(desc='', nick='', lang='text', expires='86400')
+    (options, args) = parser.parse_args()
+
+    #print options, args
+    if options.lang == 'list':
+        print 'Valid language syntax options:'
+        for opt in validSyntaxOpts:
+            print opt
+        sys.exit(0)
+    for optk, optv, opts in [('language', options.lang, validSyntaxOpts), ('expires', options.expires, validExpiresOpts)]:
+        if optv not in opts:
+            parser.error("'%s' is not a valid %s option.\n\tVALID OPTIONS: %s" % (optv, optk, ', '.join(opts)))
+
+    sys.exit(paste(options, args))
