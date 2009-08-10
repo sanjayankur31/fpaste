@@ -49,25 +49,25 @@ def paste(options, args):
                 text += '#' * 70 + '\n'
             text += open(f).read()
 
-    #print text,
-    #params = urllib.urlencode({'desc': options.desc, 'nick': options.nick, 'lang': options.lang, 'cvt_tabs': options.tabs, 'text': text})
     params = urllib.urlencode({'title': options.desc, 'author': options.nick, 'lexer': options.lang, 'content': text, 'expire_options': options.expires})
     print >> sys.stderr, "Uploading..."
     try:
-        #f = urllib.urlopen('http://rafb.net/paste/paste.php', params)
         f = urllib.urlopen('http://fpaste.org/', params)
     except IOError, e: 
         print >> sys.stderr, "Error uploading: %s" % e
         return 1
 
     url = f.geturl()
-    rcode = f.getcode()
-    if rcode != 200:
-        print >> sys.stderr, "SERVER ERROR: %d" % rcode
-        if rcode == 500:
-            print >> sys.stderr, "500 often means your paste was too large. You tried uploading %dKiB" % (len(params)/1024)
-        return int(rcode/10)
-    else:
+    try:
+        rcode = f.getcode() # urllib.getcode() >= python 2.6
+        if rcode != 200:
+            print >> sys.stderr, "SERVER ERROR: %d" % rcode
+            if rcode == 500:
+                print >> sys.stderr, "500 often means your paste was too large. You tried uploading %dKiB" % (len(params)/1024)
+            return int(rcode/10)
+        else:
+            print url
+    except:
         print url
 
     if options.pasteself:
@@ -91,17 +91,14 @@ Examples:
     parser = OptionParser(usage=usage, version='%prog '+VERSION)
     parser.add_option('-n', dest='nick', help='your nickname; default is "%default"', metavar='"NICKNAME"')
     parser.add_option('-d', dest='desc', help='description of paste; default appends filename(s)', metavar='"DESCRIPTION"')
-    #parser.add_option('-l', dest='lang', help='language of the content to use for proper syntax highlighting; default is "%default". ' + ' valid languages are: ' + ', '.join(validSyntaxOpts), metavar='"LANGUAGE"')
     parser.add_option('-l', dest='lang', help='language of the content to use for proper syntax highlighting; default is "%default"; Use "list" as parameter to show all ' + str(len(validSyntaxOpts)) + ' supported languages.', metavar='"LANGUAGE"')
-    #parser.add_option('-t', dest='tabs', help='convert tabs to NUMBER spaces; default is "%default". ' + 'valid options: ' + ', '.join(validtabsopts), metavar='NUMBER')
     parser.add_option('-x', dest='expires', help='time before paste is removed; default is "%default" seconds. valid options: ' + ', '.join(validExpiresOpts), metavar='"EXPIRES"')
     parser.add_option('', '--fullpath', dest='fullpath', help='use fullpaths instead of trailing basenames for file descriptions. i.e.: "/home/johnsmith/src/foo.py" instead of "foo.py"', action="store_true", default=False)
     parser.add_option('-p', '--pasteself', dest='pasteself', help='paste this script itself', action="store_true", default=False)
 
-    parser.set_defaults(desc='', nick='', lang='text', expires='86400')
+    parser.set_defaults(desc='', nick='', lang='text', expires=max(validExpiresOpts))
     (options, args) = parser.parse_args()
 
-    #print options, args
     if options.lang == 'list':
         print 'Valid language syntax options:'
         for opt in validSyntaxOpts:

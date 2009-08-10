@@ -5,6 +5,7 @@ fpaste ChangeLog
  *) Initial public release
  *) Added COPYING/README/TODO
  *) Only show all language options when '-l list' is used to keep usage compact
+ *) quickfix for urllib.getcode() if python<2.6. should probably use urllib2 instead.
 
 0.3.0
 =====

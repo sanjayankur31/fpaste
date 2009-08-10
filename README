@@ -1,5 +1,5 @@
 What?
-===========
+=====
 fpaste is command-line frontend for the Fedora Pastebin service at fpaste.org.
 It allows easy uploading of multiple files, or of copy&pasted text from stdin,
 without requiring a web browser. A unique fpaste link is returned, which can
