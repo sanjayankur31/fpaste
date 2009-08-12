@@ -1,5 +1,10 @@
 fpaste ChangeLog
 
+0.3.2
+=====
+ *) Added modified manpage with more verbose example usage than --help
+ *) Initial manpage draft from Ankur Sinha <ankursinha at fedoraproject.org>
+
 0.3.1
 =====
  *) Initial public release

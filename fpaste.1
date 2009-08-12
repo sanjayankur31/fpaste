@@ -1,0 +1,69 @@
+.\" first draft by Ankur Sinha &lt;ankursinha at fedoraproject.org&gt;
+.TH "fpaste" "1" "version 0.3.2" "Fedora Unity" ""
+.SH "NAME"
+fpaste \- A simple tool for pasting info onto fpaste.org
+.SH "SYNOPSIS"
+\fBfpaste\fR [\-\-v] [\-h] [\-\-help] [\-n NICKNAME] [\-d DESCRIPTION] [\-l LANGUAGE] [\-x EXPIRES] [\-p] [\-\-pasteself] [\-\-fullpath] [\fIFILE\fR]...
+.SH "DESCRIPTION"
+It is often useful to be able to easily paste text to the Fedora Pastebin at http://fpaste.org and this simple utility will do that and return the resulting URL so that people may examine the output. This can hopefully help folks who are for some reason stuck without X, working remotely, or any other reason they may be unable to paste something into the pastebin using a web browser.
+.SH "OPTIONS"
+.TP 
+\fB\-\-version\fR
+show program's version number and exit
+.TP 
+\fB\-h, \-\-help\fR
+show help message and exit
+.TP 
+\fB\-n "NICKNAME"\fR
+your nickname; default is ""
+.TP 
+\fB\-d "DESCRIPTION"\fR
+description of paste; default appends filename(s)
+.TP 
+\fB\-l "LANGUAGE"\fR
+language of the content to use for proper syntax highlighting; default is "text"; Use "list" as parameter to show all supported languages.
+.TP 
+\fB\-x "EXPIRES"\fR
+time before paste is removed; default is "86400" seconds. Valid options: 3600, 10800, 43200, 86400
+.TP 
+\fB\-\-fullpath\fR
+Use fullpaths instead of trailing basenames for file descriptions. i.e.: "/home/johnsmith/src/foo.py" instead of "foo.py"
+.TP 
+\fB\-p, \-\-pasteself\fR
+Paste the script itself
+.SH "EXAMPLES"
+.TP 
+Paste file foo.txt at fpaste.org
+.IP 
+\fBfpaste foo.txt\fR
+.TP 
+Paste output of ifconfig to fpaste.org with desription "my network config"
+.IP 
+\fBifconfig | fpaste \-d "my network config"\fR
+.TP 
+Paste mycode.py to fpaste.org with description as "problem with foo", nickname "codemonkey", and language "python"
+.IP 
+\fBfpaste \-n codemonkey \-d "problem with foo" \-l python mycode.py\fR
+.TP 
+To manually paste \fIclipboard\fR contents, run \fBfpaste\fR without file arguments so that it waits for input, then paste using mouse middle\-click, <Ctrl\-V>, or other, then press <Enter> followed by <Ctrl\-D> to finish (EOF).
+.TP 
+To paste the output of more than one program and/or file at a time, use the following example forms:
+.IP 
+\fB(lsusb ; lspci) | fpaste\fR
+.br 
+\fBfpaste <(lsusb) <(lspci)\fR
+.br 
+
+\fBfpaste <(fdisk \-l) /etc/grub.conf \-d "grub problem"\fR
+.br 
+\fB(fdisk \-l ; cat /etc/grub.conf) | fpaste \-d "grub problem"\fR
+.br 
+
+\fB(uname \-a ; yum repolist) | fpaste\fR
+.SH "BUGS"
+Report bugs to: https://fedorahosted.org/fpaste/newticket
+.br 
+or to: Jason 'zcat' Farrell <farrellj AT gmail DOT com>.
+.SH "AUTHOR"
+Fedora Unity
+
