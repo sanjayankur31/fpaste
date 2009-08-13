@@ -34,7 +34,11 @@ def paste(options, args):
     if not args:   # read from stdin if no file args supplied
         if not options.desc:
             options.desc = 'stdin'
-        text += sys.stdin.read()
+        try:
+            text += sys.stdin.read()
+        except KeyboardInterrupt:
+            print >> sys.stderr, "\nUSAGE REMINDER:\n   fpaste waits for input when run without file arguments.\n   Paste your text, then press <Ctrl-D> on a new line to finish.\nExiting..."
+            return 1
     else:
         if not options.desc:
             options.desc = '%s' % (' + '.join(fileargs))
