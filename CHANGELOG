@@ -1,5 +1,12 @@
 fpaste ChangeLog
 
+0.3.future
+=====
+ *) Proper urllib2  error handling
+ *) Catches Ctrl-C while waiting for stdin to show a usage reminder rather
+ than a traceback
+ *) Fixed some typos, and more TODO
+
 0.3.2
 =====
  *) Added modified manpage with more verbose example usage than --help

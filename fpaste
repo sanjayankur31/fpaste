@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 VERSION='0.3.2'
 
-import os, sys, urllib
+import os, sys, urllib, urllib2
 from optparse import OptionParser
 
 def paste(options, args):
@@ -56,23 +56,20 @@ def paste(options, args):
     params = urllib.urlencode({'title': options.desc, 'author': options.nick, 'lexer': options.lang, 'content': text, 'expire_options': options.expires})
     print >> sys.stderr, "Uploading..."
     try:
-        f = urllib.urlopen('http://fpaste.org/', params)
+        f = urllib2.urlopen('http://fpaste.org/', params)
     except IOError, e: 
-        print >> sys.stderr, "Error uploading: %s" % e
-        return 1
-
-    url = f.geturl()
-    try:
-        rcode = f.getcode() # urllib.getcode() >= python 2.6
-        if rcode != 200:
-            print >> sys.stderr, "SERVER ERROR: %d" % rcode
+        if hasattr(e, 'reason'):
+            print >> sys.stderr, "Error Uploading: %s" % e.reason
+            return 1
+        elif hasattr(e, 'code'):
+            rcode = e.code
+            print >> sys.stderr, "Server Error: %d - %s" % (rcode, e.msg)
             if rcode == 500:
-                print >> sys.stderr, "500 often means your paste was too large. You tried uploading %dKiB" % (len(params)/1024)
+                print >> sys.stderr, "500 often means your paste was too large. You tried uploading %dKiB. A pastebin is NOT a file hosting service!" % (len(params)/1024)
             return int(rcode/10)
-        else:
-            print url
-    except:
-        print url
+    
+    url = f.geturl()
+    print url
 
     if options.pasteself:
         print >> sys.stderr, "quickget:   mkdir -p ~/bin; curl " + url + "raw/ -o ~/bin/fpaste.py && chmod +x ~/bin/fpaste.py"
