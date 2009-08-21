@@ -1,11 +1,12 @@
 fpaste ChangeLog
 
-0.3.future
+0.3.3
 =====
- *) Proper urllib2  error handling
- *) Catches Ctrl-C while waiting for stdin to show a usage reminder rather
- than a traceback
+ *) Proper urllib2 error handling
+ *) Catches Ctrl-C while waiting for stdin to show a usage reminder rather than a traceback
  *) Fixed some typos, and more TODO
+ *) Added --sysinfo option to gather and pastebin basic system information
+ *) Added options to read text from (xsel) clipboard and write resultant URL to clipboard
 
 0.3.2
 =====

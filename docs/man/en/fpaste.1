@@ -31,6 +31,18 @@ Use fullpaths instead of trailing basenames for file descriptions. i.e.: "/home/
 .TP 
 \fB\-p, \-\-pasteself\fR
 Paste the script itself
+.TP 
+\fB\-\-sysinfo\fR
+paste system information
+.TP 
+\fB\-i, \-\-clipin\fR
+read paste text from current X clipboard selection
+.TP 
+\fB\-o, \-\-clipout\fR
+save returned paste URL to X clipboard
+.TP 
+\fB\-\-selection=CLIPBOARD\fR
+specify which X clipboard to use. valid options are "primary" (default; middle\-mouse button paste), "secondary" (uncommon), or "clipboard" (ctrl\-c/ctrl\-v paste)
 .SH "EXAMPLES"
 .TP 
 Paste file foo.txt at fpaste.org
@@ -44,6 +56,10 @@ Paste output of ifconfig to fpaste.org with description "my network config"
 Paste mycode.py to fpaste.org with description as "problem with foo", nickname "codemonkey", and language "python"
 .IP 
 \fBfpaste \-n codemonkey \-d "problem with foo" \-l python mycode.py\fR
+.TP 
+Paste mouse\-selected text from the primary X selection clipboard, and then overwrite the same clipboard with the returned fpaste URL
+.IP 
+\fBfpaste \-io\fR
 .TP 
 To manually paste \fIclipboard\fR contents, run \fBfpaste\fR without file arguments so that it waits for input, then paste using mouse middle\-click, <Ctrl\-V>, or other, then press <Enter> followed by <Ctrl\-D> to finish (EOF).
 .TP 

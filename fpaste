@@ -15,44 +15,13 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-VERSION='0.3.2'
+VERSION='0.3.3'
 
 import os, sys, urllib, urllib2
 from optparse import OptionParser
 
-def paste(options, args):
-    '''send file(s)+stdin to fpaste.org'''
-    if options.pasteself:
-        args = [sys.argv[0]]     # override all other file args for this case
-        options.lang = 'python'
-        options.nick = 'Fedora Unity'
-    fileargs = args
-    if not options.fullpath:
-        fileargs = [os.path.basename(x) for x in args]  # remove potentially non-anonymous path info from file path descriptions
-
-    text = ""
-    if not args:   # read from stdin if no file args supplied
-        if not options.desc:
-            options.desc = 'stdin'
-        try:
-            text += sys.stdin.read()
-        except KeyboardInterrupt:
-            print >> sys.stderr, "\nUSAGE REMINDER:\n   fpaste waits for input when run without file arguments.\n   Paste your text, then press <Ctrl-D> on a new line to finish.\nExiting..."
-            return 1
-    else:
-        if not options.desc:
-            options.desc = '%s' % (' + '.join(fileargs))
-        else:
-            options.desc = '%s: %s' % (options.desc, ' + '.join(fileargs))
-        for i, f in enumerate(args):
-            if not os.access(f, os.R_OK):
-                parser.error("file '%s' is not readable" % f)
-            if (len(args) > 1):     # separate multiple files with header
-                text += '#' * 70 + '\n'
-                text += '# nopaste file %d of %d: %s\n' % (i+1, len(args), f)
-                text += '#' * 70 + '\n'
-            text += open(f).read()
-
+def paste(text, options):
+    '''send text to fpaste.org'''
     params = urllib.urlencode({'title': options.desc, 'author': options.nick, 'lexer': options.lang, 'content': text, 'expire_options': options.expires})
     print >> sys.stderr, "Uploading..."
     try:
@@ -60,25 +29,72 @@ def paste(options, args):
     except IOError, e: 
         if hasattr(e, 'reason'):
             print >> sys.stderr, "Error Uploading: %s" % e.reason
-            return 1
         elif hasattr(e, 'code'):
             rcode = e.code
             print >> sys.stderr, "Server Error: %d - %s" % (rcode, e.msg)
             if rcode == 500:
                 print >> sys.stderr, "500 often means your paste was too large. You tried uploading %dKiB. A pastebin is NOT a file hosting service!" % (len(params)/1024)
-            return int(rcode/10)
-    
-    url = f.geturl()
-    print url
+            #sys.exit(int(rcode/10))
+        return 0
+    finally:
+        return f.geturl()
 
-    if options.pasteself:
-        print >> sys.stderr, "quickget:   mkdir -p ~/bin; curl " + url + "raw/ -o ~/bin/fpaste.py && chmod +x ~/bin/fpaste.py"
-    return 0
+
+def sysinfo():
+    '''returns commonly requested (and fedora-specific) system info'''
+    # what all *should* be gathered (as non-root)? and what's too 'private'? ask for perm before sending?
+    print >> sys.stderr, "Gathering system info..."
+
+    si = []
+
+    # /etc/{fedora,system,redhat,debian,*}-release
+    out = os.popen('(cat /etc/*-release | tail -1) 2>/dev/null').read()
+    if not out:
+        out = 'N/A'
+    si.append( ('OS Release (/etc/*-release)', out) )
+
+    # uname -r
+    si.append( ('kernel (uname -r)', os.popen('uname -r').read()) )
+
+    # public SMOLT url
+    pubUUIDFile = '/etc/sysconfig/pub-uuid-www.smolts.org'
+    if os.access(pubUUIDFile, os.R_OK):
+        puburl = 'http://smolts.org/client/show_all/' + open(pubUUIDFile).read() + "\n"
+    else:
+        puburl = 'N/A'
+    si.append( ('Smolt URL', puburl) )
+
+    # selinux status
+    si.append( ('SELinux (sestatus)', os.popen('sestatus').read()) )
+    # load average
+    si.append( ('Load average (uptime)', os.popen('uptime').read()) )
+    # mem usage
+    si.append( ('Memory usage (free -m)', os.popen('free -m').read()) )
+    # disk space usage
+    si.append( ('Disk space usage (df -h)', os.popen('df -h').read()) )
+    # yum repos  - may fail
+    si.append( ('YUM Repositories (yum -C repolist)', os.popen('yum -C repolist').read()) )
+    # lspci
+    si.append( ('lspci', os.popen('lspci').read()) )
+    # lsusb
+    si.append( ('lsusb', os.popen('lsusb').read()) )
+    # rpm -qa
+    si.append( ('Installed packages (rpm -qa|sort)', os.popen('rpm -qa|sort').read()) )
+
+    # return in readable indented format
+    sistr = "=== fpaste --sysinfo ===\n"
+    for k,v in si:
+        sistr += "* %s:\n" % k
+        for line in v.split('\n'):
+            sistr += "     %s\n" % line
+
+    return sistr
 
 
 if __name__ == "__main__":
     validExpiresOpts = ['3600', '10800', '43200', '86400']
     validSyntaxOpts = ['abap', 'antlr', 'antlr-as', 'antlr-cpp', 'antlr-csharp', 'antlr-java', 'antlr-objc', 'antlr-perl', 'antlr-python', 'antlr-ruby', 'apacheconf', 'applescript', 'as', 'as3', 'aspx-cs', 'aspx-vb', 'basemake', 'bash', 'bat', 'bbcode', 'befunge', 'boo', 'brainfuck', 'c', 'c-objdump', 'cheetah', 'clojure', 'common-lisp', 'console', 'control', 'cpp', 'cpp-objdump', 'csharp', 'css', 'css+django', 'css+erb', 'css+genshitext', 'css+mako', 'css+myghty', 'css+php', 'css+smarty', 'cython', 'd', 'd-objdump', 'delphi', 'diff', 'django', 'dpatch', 'dylan', 'erb', 'erl', 'erlang', 'evoque', 'fortran', 'gas', 'genshi', 'genshitext', 'glsl', 'gnuplot', 'groff', 'haskell', 'html', 'html+cheetah', 'html+django', 'html+evoque', 'html+genshi', 'html+mako', 'html+myghty', 'html+php', 'html+smarty', 'ini', 'io', 'irc', 'java', 'js', 'js+cheetah', 'js+django', 'js+erb', 'js+genshitext', 'js+mako', 'js+myghty', 'js+php', 'js+smarty', 'jsp', 'lhs', 'lighty', 'llvm', 'logtalk', 'lua', 'make', 'mako', 'matlab', 'matlabsession', 'minid', 'modelica', 'moocode', 'mupad', 'mxml', 'myghty', 'mysql', 'nasm', 'newspeak', 'nginx', 'numpy', 'objdump', 'objective-c', 'ocaml', 'perl', 'php', 'pot', 'pov', 'prolog', 'py3tb', 'pycon', 'pytb', 'python', 'python3', 'ragel', 'ragel-c', 'ragel-cpp', 'ragel-d', 'ragel-em', 'ragel-java', 'ragel-objc', 'ragel-ruby', 'raw', 'rb', 'rbcon', 'rebol', 'redcode', 'rhtml', 'rst', 'scala', 'scheme', 'smalltalk', 'smarty', 'sourceslist', 'splus', 'sql', 'sqlite3', 'squidconf', 'tcl', 'tcsh', 'tex', 'text', 'trac-wiki', 'vala', 'vb.net', 'vim', 'xml', 'xml+cheetah', 'xml+django', 'xml+erb', 'xml+evoque', 'xml+mako', 'xml+myghty', 'xml+php', 'xml+smarty', 'xslt', 'yaml']
+    validClipboardSelectionOpts = [ 'primary', 'secondary', 'clipboard' ]
     #ext2lang_map = {}
     usage = """\
 usage: %prog [OPTION]... [FILE]...
@@ -96,8 +112,12 @@ Examples:
     parser.add_option('-x', dest='expires', help='time before paste is removed; default is "%default" seconds. valid options: ' + ', '.join(validExpiresOpts), metavar='"EXPIRES"')
     parser.add_option('', '--fullpath', dest='fullpath', help='use fullpaths instead of trailing basenames for file descriptions. i.e.: "/home/johnsmith/src/foo.py" instead of "foo.py"', action="store_true", default=False)
     parser.add_option('-p', '--pasteself', dest='pasteself', help='paste this script itself', action="store_true", default=False)
+    parser.add_option('', '--sysinfo', dest='sysinfo', help='paste system information', action="store_true", default=False)
+    parser.add_option('-i', '--clipin', dest='clipin', help='read paste text from current X clipboard selection', action="store_true", default=False)
+    parser.add_option('-o', '--clipout', dest='clipout', help='save returned paste URL to X clipboard', action="store_true", default=False)
+    parser.add_option('', '--selection', dest='selection', help='specify which X clipboard to use. valid options are "primary" (default; middle-mouse button paste), "secondary" (uncommon), or "clipboard" (ctrl-c/ctrl-v paste)', metavar='CLIPBOARD')
 
-    parser.set_defaults(desc='', nick='', lang='text', expires=max(validExpiresOpts))
+    parser.set_defaults(desc='', nick='', lang='text', expires=max(validExpiresOpts), selection='primary')
     (options, args) = parser.parse_args()
 
     if options.lang == 'list':
@@ -105,8 +125,63 @@ Examples:
         for opt in validSyntaxOpts:
             print opt
         sys.exit(0)
-    for optk, optv, opts in [('language', options.lang, validSyntaxOpts), ('expires', options.expires, validExpiresOpts)]:
+    if options.clipin and args:
+        parser.error("Sending both clipboard contents AND files is not supported. Use -i OR filename(s)")
+    for optk, optv, opts in [('language', options.lang, validSyntaxOpts), ('expires', options.expires, validExpiresOpts), ('clipboard selection', options.selection, validClipboardSelectionOpts)]:
         if optv not in opts:
             parser.error("'%s' is not a valid %s option.\n\tVALID OPTIONS: %s" % (optv, optk, ', '.join(opts)))
 
-    sys.exit(paste(options, args))
+    fileargs = args
+    if not options.fullpath:
+        fileargs = [os.path.basename(x) for x in args]  # remove potentially non-anonymous path info from file path descriptions
+
+    text = ""
+    # get input from mutually exclusive sources, though they *could* be combined
+    if options.clipin:
+        xselcmd = 'xsel -o --%s' % options.selection
+        text = os.popen(xselcmd).read()
+        if not text:
+            parser.error("Error reading from %s clipboard" % options.selection)
+    elif options.pasteself:
+        text = open(sys.argv[0]).read()
+        options.desc = 'fpaste'
+        options.lang = 'python'
+        options.nick = 'Fedora Unity'
+    elif options.sysinfo:
+        text = sysinfo()
+        #options.desc = 'fpaste --sysinfo'
+    elif not args:   # read from stdin if no file args supplied
+        if not options.desc:
+            options.desc = 'stdin'
+        try:
+            text += sys.stdin.read()
+        except KeyboardInterrupt:
+            print >> sys.stderr, "\nUSAGE REMINDER:\n   fpaste waits for input when run without file arguments.\n   Paste your text, then press <Ctrl-D> on a new line to upload.\n   Use 'fpaste --help' for more options.\nExiting..."
+            sys.exit(1)
+    else:
+        if not options.desc:
+            options.desc = '%s' % (' + '.join(fileargs))
+        else:
+            options.desc = '%s: %s' % (options.desc, ' + '.join(fileargs))
+        for i, f in enumerate(args):
+            if not os.access(f, os.R_OK):
+                parser.error("file '%s' is not readable" % f)
+            if (len(args) > 1):     # separate multiple files with header
+                text += '#' * 70 + '\n'
+                text += '### file %d of %d: %s\n' % (i+1, len(args), fileargs[i])
+                text += '#' * 70 + '\n'
+            text += open(f).read()
+
+    url = paste(text, options)
+    if url:
+        print url
+        if options.clipout: # save URL in clipboard too
+            xselcmd = 'xsel -i --%s' % options.selection
+            text = os.popen(xselcmd, 'wb').write(url)
+    else:
+        sys.exit(1)
+
+    if options.pasteself:
+        print >> sys.stderr, "install to ~/bin by running:    mkdir -p ~/bin; curl " + url + "raw/ -o ~/bin/fpaste.py && chmod +x ~/bin/fpaste.py"
+
+    sys.exit(0)
