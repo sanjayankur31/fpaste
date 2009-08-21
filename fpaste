@@ -20,10 +20,47 @@ VERSION='0.3.3'
 import os, sys, urllib, urllib2
 from optparse import OptionParser
 
+def istext(text, maxCheck = 100, pctPrintable = 0.75):
+    '''returns true if maxCheck evenly distributed chars in paste text are mostly printable'''
+    # e.g.: /bin/* ranges between 19% and 42% printable
+    import string
+    nchars = len(text)
+    ncheck = min(nchars, maxCheck)
+    inc = float(nchars)/ncheck
+    i = 0.0
+    nprintable = 0
+    for c in range(0, ncheck):
+        #print "inc: %f; i: %f; c: %d; text[int(i)]: %s" % (inc, i, c, text[int(i)])
+        if text[int(i)] in string.printable:
+            nprintable += 1
+        i += inc
+    pct = float(nprintable) / ncheck
+    #print "%10.1fK; pct = %.2f" % (nchars/1024, pct); sys.exit(1)
+    return (pct >= pctPrintable)
+
+def sendConfirm(prompt = "Send anyway? [y/N]: "):
+    if raw_input(prompt).lower() != 'y':
+        return False
+    return True
+
 def paste(text, options):
     '''send text to fpaste.org'''
     params = urllib.urlencode({'title': options.desc, 'author': options.nick, 'lexer': options.lang, 'content': text, 'expire_options': options.expires})
-    print >> sys.stderr, "Uploading..."
+    pasteSizeKiB = len(params)/1024.0
+
+    if pasteSizeKiB > 8*1024:   # 16MB is the current hard limit
+        print >> sys.stderr, "WARNING: your paste size (%.1fM) is getting ridiculously large and may be rejected by the server. A pastebin is NOT a file hosting service" % (pasteSizeKiB/1024)
+        if not sendConfirm():
+            return False
+    elif pasteSizeKiB > 1024:
+        print >> sys.stderr, "WARNING: your paste size (%.1fM) is over 1MB. A pastebin is NOT a file hosting service" % (pasteSizeKiB/1024)
+    # verify that it's most likely *non-binary* data being sent.
+    if not istext(text):
+        print >> sys.stderr, "WARNING: your paste looks a lot like binary data instead of text."
+        if not sendConfirm():
+            return False
+
+    print >> sys.stderr, "Uploading (%.1fK)..." % pasteSizeKiB
     try:
         f = urllib2.urlopen('http://fpaste.org/', params)
     except IOError, e: 
@@ -33,8 +70,7 @@ def paste(text, options):
             rcode = e.code
             print >> sys.stderr, "Server Error: %d - %s" % (rcode, e.msg)
             if rcode == 500:
-                print >> sys.stderr, "500 often means your paste was too large. You tried uploading %dKiB. A pastebin is NOT a file hosting service!" % (len(params)/1024)
-            #sys.exit(int(rcode/10))
+                print >> sys.stderr, "500 often means your paste was too large. You tried uploading %dKiB. A pastebin is NOT a file hosting service!" % (pasteSizeKiB)
         return 0
     finally:
         return f.geturl()
@@ -177,7 +213,7 @@ Examples:
         print url
         if options.clipout: # save URL in clipboard too
             xselcmd = 'xsel -i --%s' % options.selection
-            text = os.popen(xselcmd, 'wb').write(url)
+            os.popen(xselcmd, 'wb').write(url)
     else:
         sys.exit(1)
 
