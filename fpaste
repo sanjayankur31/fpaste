@@ -47,11 +47,17 @@ def sendConfirm(prompt = "Send anyway? [y/N]: "):
         ans = raw_input(prompt)
     except EOFError:    # fpaste has already read sys.stdin and hit EOF
         # rebind sys.stdin to user tty (unix-only)
-        #sys.stdin = open(os.ttyname(0))
-        sys.stdin = open('/dev/tty')
-        ans = raw_input()   # prompt already output
+        sys.stdout.flush()
+        mytty = os.ttyname(sys.stdout.fileno())
+        try:
+            #sys.stdin = open('/dev/tty')
+            sys.stdin = open(mytty)
+            ans = raw_input()   # prompt already output above
+        except:
+            print >> sys.stderr, "error: raw_input: could not rebind sys.stdin to %s after sys.stdin EOF" % mytty
+            return False
 
-    if ans.lower() == "y":
+    if ans.lower().startswith("y"):
         return True
     else:
         return False
