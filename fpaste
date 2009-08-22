@@ -18,13 +18,15 @@
 VERSION='0.3.3'
 
 import os, sys, urllib, urllib2
-from optparse import OptionParser
+from optparse import OptionParser, SUPPRESS_HELP
 
-def istext(text, maxCheck = 100, pctPrintable = 0.75):
+def isText(text, maxCheck = 100, pctPrintable = 0.75):
     '''returns true if maxCheck evenly distributed chars in paste text are mostly printable'''
     # e.g.: /bin/* ranges between 19% and 42% printable
     import string
     nchars = len(text)
+    if nchars == 0:
+        return False
     ncheck = min(nchars, maxCheck)
     inc = float(nchars)/ncheck
     i = 0.0
@@ -39,15 +41,29 @@ def istext(text, maxCheck = 100, pctPrintable = 0.75):
     return (pct >= pctPrintable)
 
 def sendConfirm(prompt = "Send anyway? [y/N]: "):
-    if raw_input(prompt).lower() != 'y':
+    '''prompt user for yes/no input'''
+    # need a workaround to read user input from raw_input following sys.stdin
+    try:
+        ans = raw_input(prompt)
+    except EOFError:    # fpaste has already read sys.stdin and hit EOF
+        # rebind sys.stdin to user tty (unix-only)
+        #sys.stdin = open(os.ttyname(0))
+        sys.stdin = open('/dev/tty')
+        ans = raw_input()   # prompt already output
+
+    if ans.lower() == "y":
+        return True
+    else:
         return False
-    return True
 
 def paste(text, options):
-    '''send text to fpaste.org'''
+    '''send text to fpaste.org and return the URL'''
     params = urllib.urlencode({'title': options.desc, 'author': options.nick, 'lexer': options.lang, 'content': text, 'expire_options': options.expires})
     pasteSizeKiB = len(params)/1024.0
 
+    if not text:
+        print >> sys.stderr, "No text to send."
+        return False
     if pasteSizeKiB > 8*1024:   # 16MB is the current hard limit
         print >> sys.stderr, "WARNING: your paste size (%.1fM) is getting ridiculously large and may be rejected by the server. A pastebin is NOT a file hosting service" % (pasteSizeKiB/1024)
         if not sendConfirm():
@@ -55,7 +71,7 @@ def paste(text, options):
     elif pasteSizeKiB > 1024:
         print >> sys.stderr, "WARNING: your paste size (%.1fM) is over 1MB. A pastebin is NOT a file hosting service" % (pasteSizeKiB/1024)
     # verify that it's most likely *non-binary* data being sent.
-    if not istext(text):
+    if not isText(text):
         print >> sys.stderr, "WARNING: your paste looks a lot like binary data instead of text."
         if not sendConfirm():
             return False
@@ -72,32 +88,32 @@ def paste(text, options):
             if rcode == 500:
                 print >> sys.stderr, "500 often means your paste was too large. You tried uploading %dKiB. A pastebin is NOT a file hosting service!" % (pasteSizeKiB)
         return 0
-    finally:
-        return f.geturl()
+    return f.geturl()
 
 
 def sysinfo():
     '''returns commonly requested (and fedora-specific) system info'''
     # what all *should* be gathered (as non-root)? and what's too 'private'? ask for perm before sending?
+    # TODO: use subprocess instead of popen, and silence stderr unless --debug
     print >> sys.stderr, "Gathering system info..."
 
     si = []
 
     # /etc/{fedora,system,redhat,debian,*}-release
-    out = os.popen('(cat /etc/*-release | tail -1) 2>/dev/null').read()
+    out = os.popen('(cat /etc/*-release | uniq) 2>/dev/null').read()
     if not out:
-        out = 'N/A'
+        out = os.popen('lsb_release -ds 2>/dev/null').read()
     si.append( ('OS Release (/etc/*-release)', out) )
 
     # uname -r
-    si.append( ('kernel (uname -r)', os.popen('uname -r').read()) )
+    si.append( ('Kernel (uname -r)', os.popen('uname -r').read()) )
 
     # public SMOLT url
     pubUUIDFile = '/etc/sysconfig/pub-uuid-www.smolts.org'
     if os.access(pubUUIDFile, os.R_OK):
         puburl = 'http://smolts.org/client/show_all/' + open(pubUUIDFile).read() + "\n"
     else:
-        puburl = 'N/A'
+        puburl = None
     si.append( ('Smolt URL', puburl) )
 
     # selinux status
@@ -111,18 +127,21 @@ def sysinfo():
     # yum repos  - may fail
     si.append( ('YUM Repositories (yum -C repolist)', os.popen('yum -C repolist').read()) )
     # lspci
-    si.append( ('lspci', os.popen('lspci').read()) )
+    si.append( ('PCI devices (lspci)', os.popen('lspci').read()) )
     # lsusb
-    si.append( ('lsusb', os.popen('lsusb').read()) )
-    # rpm -qa
+    si.append( ('USB devices (lsusb)', os.popen('lsusb').read()) )
+    # rpm -qa / dpkg -l
     si.append( ('Installed packages (rpm -qa|sort)', os.popen('rpm -qa|sort').read()) )
 
     # return in readable indented format
     sistr = "=== fpaste --sysinfo ===\n"
     for k,v in si:
         sistr += "* %s:\n" % k
-        for line in v.split('\n'):
-            sistr += "     %s\n" % line
+        if not v:
+            sistr += "     N/A\n\n"
+        else:
+            for line in v.split('\n'):
+                sistr += "     %s\n" % line
 
     return sistr
 
@@ -141,6 +160,8 @@ Examples:
   %prog foo.txt
   ifconfig | %prog -d "my network config"
   %prog -n codemonkey -d "problem with foo" mycode.py"""
+
+    #TODO: use parser's own 'choices' instead of dup'd validOpts
     parser = OptionParser(usage=usage, version='%prog '+VERSION)
     parser.add_option('-n', dest='nick', help='your nickname; default is "%default"', metavar='"NICKNAME"')
     parser.add_option('-d', dest='desc', help='description of paste; default appends filename(s)', metavar='"DESCRIPTION"')
@@ -152,6 +173,9 @@ Examples:
     parser.add_option('-i', '--clipin', dest='clipin', help='read paste text from current X clipboard selection', action="store_true", default=False)
     parser.add_option('-o', '--clipout', dest='clipout', help='save returned paste URL to X clipboard', action="store_true", default=False)
     parser.add_option('', '--selection', dest='selection', help='specify which X clipboard to use. valid options are "primary" (default; middle-mouse button paste), "secondary" (uncommon), or "clipboard" (ctrl-c/ctrl-v paste)', metavar='CLIPBOARD')
+    parser.add_option('', '--debug', dest='debug', help=SUPPRESS_HELP, action="store_true", default=False)
+    parser.add_option('', '--printOnly', dest='printOnly', help='print paste, but do not send', action="store_true", default=False)
+    parser.add_option('', '--printConfirm', dest='printConfirm', help='print paste, and prompt for confirmation to send', action="store_true", default=False)
 
     parser.set_defaults(desc='', nick='', lang='text', expires=max(validExpiresOpts), selection='primary')
     (options, args) = parser.parse_args()
@@ -208,16 +232,25 @@ Examples:
                 text += '#' * 70 + '\n'
             text += open(f).read()
 
+    if options.printOnly:
+        print text
+        sys.exit(0)
+    elif options.printConfirm:
+        print text
+        if not sendConfirm("OK to send? [y/N]: "):
+            sys.exit(1)
+
     url = paste(text, options)
     if url:
         print url
-        if options.clipout: # save URL in clipboard too
-            xselcmd = 'xsel -i --%s' % options.selection
+        if options.clipout: # try save URL in clipboard too
+            # TODO: use subprocess here instead of popen
+            xselcmd = 'xsel -i --%s 2>/dev/null' % options.selection
             os.popen(xselcmd, 'wb').write(url)
     else:
         sys.exit(1)
 
     if options.pasteself:
-        print >> sys.stderr, "install to ~/bin by running:    mkdir -p ~/bin; curl " + url + "raw/ -o ~/bin/fpaste.py && chmod +x ~/bin/fpaste.py"
+        print >> sys.stderr, "install fpaste to local ~/bin dir by running:    mkdir -p ~/bin; curl " + url + "raw/ -o ~/bin/fpaste && chmod +x ~/bin/fpaste"
 
     sys.exit(0)
