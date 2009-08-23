@@ -1,4 +1,6 @@
 A few things to do, if anybody cares enough about a simple paste util:
+ - generate the manpage from python
+ - fallback to different clipboard methods: xsel, xclip, dbus
  - Generalize for multiple pastebins, and fallback
    fpaste.org, dpaste.com, pastie.org, etc.
  - Keep a cookiejar

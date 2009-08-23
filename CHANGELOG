@@ -1,12 +1,17 @@
 fpaste ChangeLog
 
-0.3.future
+0.3.4 - 20090823
 =====
- *) Validated paste size and content as non-binary before sending; user is
- prompted Y/N to override for huge pastes or binary content.
- *) Added options --printOnly and --printConfirm to ask user before sending
- *) for sysinfo, if no /etc/*-release files, try lsb_release instead
- *) workaround to read user input from raw_input following sys.stdin EOF
+ *) Validate paste size and content as non-binary before sending; user is
+    prompted Y/N to override for huge pastes or binary content.
+ *) Added options --printonly and --confirm to show or ask user before sending
+ *) --sysinfo updated: Added blkid, top CPU hogs, top memory hogs, X errors,
+    h/w virtualization, 64-bit capable, and last few reboot/runlevel changes
+ *) Workaround to read user input from raw_input following sys.stdin EOF
+ *) Guess language syntax from common file extension(s)
+ *) --help usage compacted and grouped
+ *) Check that 'xsel' is installed for clipboard input support; silent fail on output
+ *) Use 'fpaste/x.x.x' User-agent header
  *) bug fixes
 
 0.3.3

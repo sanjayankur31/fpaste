@@ -2,6 +2,7 @@
 '''fpaste - a cli frontend for the fpaste.org pastebin'''
 #
 # Copyright 2008, 2009 Fedora Unity Project (http://fedoraunity.org)
+# Author: Jason 'zcat' Farrell <farrellj@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,15 +16,18 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-VERSION='0.3.3'
+VERSION = '0.3.4'
+USER_AGENT = 'fpaste/' + VERSION
+SET_DESCRIPTION_IF_EMPTY = 0  # stdin, clipboard, sysinfo
 
 import os, sys, urllib, urllib2
-from optparse import OptionParser, SUPPRESS_HELP
+from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
+import subprocess
 
-def isText(text, maxCheck = 100, pctPrintable = 0.75):
-    '''returns true if maxCheck evenly distributed chars in paste text are mostly printable'''
+def is_text(text, maxCheck = 100, pctPrintable = 0.75):
+    '''returns true if maxCheck evenly distributed chars in text are >= pctPrintable% text chars'''
     # e.g.: /bin/* ranges between 19% and 42% printable
-    import string
+    from string import printable
     nchars = len(text)
     if nchars == 0:
         return False
@@ -31,25 +35,24 @@ def isText(text, maxCheck = 100, pctPrintable = 0.75):
     inc = float(nchars)/ncheck
     i = 0.0
     nprintable = 0
-    for c in range(0, ncheck):
-        #print "inc: %f; i: %f; c: %d; text[int(i)]: %s" % (inc, i, c, text[int(i)])
-        if text[int(i)] in string.printable:
+    while i < nchars:
+        if text[int(i)] in printable:
             nprintable += 1
         i += inc
     pct = float(nprintable) / ncheck
-    #print "%10.1fK; pct = %.2f" % (nchars/1024, pct); sys.exit(1)
     return (pct >= pctPrintable)
 
-def sendConfirm(prompt = "Send anyway? [y/N]: "):
-    '''prompt user for yes/no input'''
+
+def confirm(prompt = "OK?"):
+    '''prompt user for yes/no input and return True or False'''
     # need a workaround to read user input from raw_input following sys.stdin
+    prompt += " [y/N]: "
     try:
         ans = raw_input(prompt)
     except EOFError:    # fpaste has already read sys.stdin and hit EOF
         # rebind sys.stdin to user tty (unix-only)
-        sys.stdout.flush()
-        mytty = os.ttyname(sys.stdout.fileno())
         try:
+            mytty = os.ttyname(sys.stdout.fileno())
             #sys.stdin = open('/dev/tty')
             sys.stdin = open(mytty)
             ans = raw_input()   # prompt already output above
@@ -62,57 +65,98 @@ def sendConfirm(prompt = "Send anyway? [y/N]: "):
     else:
         return False
 
+
 def paste(text, options):
     '''send text to fpaste.org and return the URL'''
-    params = urllib.urlencode({'title': options.desc, 'author': options.nick, 'lexer': options.lang, 'content': text, 'expire_options': options.expires})
-    pasteSizeKiB = len(params)/1024.0
-
     if not text:
         print >> sys.stderr, "No text to send."
         return False
+
+    params = urllib.urlencode({'title': options.desc, 'author': options.nick, 'lexer': options.lang, 'content': text, 'expire_options': options.expires})
+    pasteSizeKiB = len(params)/1024.0
+
     if pasteSizeKiB > 8*1024:   # 16MB is the current hard limit
-        print >> sys.stderr, "WARNING: your paste size (%.1fM) is getting ridiculously large and may be rejected by the server. A pastebin is NOT a file hosting service" % (pasteSizeKiB/1024)
-        if not sendConfirm():
+        print >> sys.stderr, "WARNING: your paste size (%.1fM) is ridiculously large and may be rejected by the server. A pastebin is NOT a file hosting service!" % (pasteSizeKiB/1024)
+        if not confirm("Send huge paste anyway?"):
             return False
     elif pasteSizeKiB > 1024:
-        print >> sys.stderr, "WARNING: your paste size (%.1fM) is over 1MB. A pastebin is NOT a file hosting service" % (pasteSizeKiB/1024)
+        print >> sys.stderr, "WARNING: your paste size (%.1fM) is over 1MB. A pastebin is NOT a file hosting service!" % (pasteSizeKiB/1024)
     # verify that it's most likely *non-binary* data being sent.
-    if not isText(text):
+    if not is_text(text):
         print >> sys.stderr, "WARNING: your paste looks a lot like binary data instead of text."
-        if not sendConfirm():
+        if not confirm("Send binary data anyway?"):
             return False
 
+    req = urllib2.Request(url='http://fpaste.org/', data=params, headers={'User-agent': USER_AGENT})
+    if options.proxy:
+        if options.debug:
+            print >> sys.stderr, "Using proxy: %s" % options.proxy
+        req.set_proxy(options.proxy, 'http')
+
     print >> sys.stderr, "Uploading (%.1fK)..." % pasteSizeKiB
+
     try:
-        f = urllib2.urlopen('http://fpaste.org/', params)
+        f = urllib2.urlopen(req)
     except IOError, e: 
         if hasattr(e, 'reason'):
             print >> sys.stderr, "Error Uploading: %s" % e.reason
         elif hasattr(e, 'code'):
-            rcode = e.code
-            print >> sys.stderr, "Server Error: %d - %s" % (rcode, e.msg)
-            if rcode == 500:
+            print >> sys.stderr, "Server Error: %d - %s" % (e.code, e.msg)
+            if e.code == 500:
                 print >> sys.stderr, "500 often means your paste was too large. You tried uploading %dKiB. A pastebin is NOT a file hosting service!" % (pasteSizeKiB)
         return 0
     return f.geturl()
 
 
-def sysinfo():
-    '''returns commonly requested (and fedora-specific) system info'''
+def sysinfo(show_stderr = 0):
+    '''returns commonly requested (and some fedora-specific) system info'''
     # what all *should* be gathered (as non-root)? and what's too 'private'? ask for perm before sending?
-    # TODO: use subprocess instead of popen, and silence stderr unless --debug
-    print >> sys.stderr, "Gathering system info..."
+    # 'ps' output below has been anonymized: -n for uid vs username, and -c for short processname
 
+    # cmd name, command, command2 fallback, command3 fallback, ...
+    cmdlist = [
+        ('OS Release',         '''lsb_release -ds''', '''cat /etc/*-release | uniq'''),
+        ('Kernel',             '''uname -r'''),
+        #('Smolt Profile URL',  '''f="/etc/sysconfig/pub-uuid-www.smolts.org"; [ -r "$f" ] && echo "http://smolts.org/client/show_all/$(cat $f)"'''),
+        ('64-bit Support',     '''grep -q ' lm ' /proc/cpuinfo && echo Yes || echo No'''),
+        ('Hardware Virtualization Support', '''egrep -q '(vmx|svm)' /proc/cpuinfo && echo Yes || echo No'''),
+        ('SELinux',            '''sestatus''', '''/usr/sbin/sestatus''', '''getenforce''', '''grep -v '^#' /etc/sysconfig/selinux'''),
+        ('Load average',       '''uptime'''),
+        ('Memory usage',       '''free -m'''),
+        #('Top',                '''top -n1 -b | head -15'''),
+        ('Top 5 CPU hogs',     '''ps axuScnh | awk '$2!=''' + str(os.getpid()) + '''' | sort -rnk3 | head -5'''),
+        ('Top 5 Memory hogs',  '''ps axuScnh | sort -rnk4 | head -5'''),
+        ('Disk space usage',   '''df -h'''),
+        ('Block devices',      '''blkid''', '''/sbin/blkid'''),
+        ('PCI devices',        '''lspci''', '''/sbin/lspci'''),
+        ('USB devices',        '''lsusb''', '''/sbin/lsusb'''),
+        ('X errors',           '''grep '^(EE)' /var/log/Xorg.0.log'''),
+        ('Kernel buffer tail', '''dmesg | tail'''),
+        ('Last few reboots',   '''last -x -n10 reboot runlevel'''),
+        ('YUM Repositories',   '''yum -C repolist''', '''ls -l /etc/yum.repos.d''', '''grep -v '^#' /etc/yum.conf'''),
+        ('YUM Extras',         '''yum -C list extras'''),
+        #('/var/log/boot.log',  '''cat /var/log/boot.log'''),
+        #('Last 20 packages installed', '''rpm -qa --last | head -20'''),
+        ('Installed packages', '''rpm -qa | sort''', '''dpkg -l''') ]
     si = []
-
-    # /etc/{fedora,system,redhat,debian,*}-release
-    out = os.popen('(cat /etc/*-release | uniq) 2>/dev/null').read()
-    if not out:
-        out = os.popen('lsb_release -ds 2>/dev/null').read()
-    si.append( ('OS Release (/etc/*-release)', out) )
-
-    # uname -r
-    si.append( ('Kernel (uname -r)', os.popen('uname -r').read()) )
+    print >> sys.stderr, "Gathering system info",
+    for cmds in cmdlist:
+        cmdname = cmds[0]
+        cmd = ""
+        for cmd in cmds[1:]:
+            sys.stderr.write('.') # simple progress feedback
+            p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            (out, err) = p.communicate()
+            if p.returncode == 0 and out:
+                break
+            else:
+                if show_stderr:
+                    print >> sys.stderr, "sysinfo Error: the cmd \"%s\" returned %d with stderr: %s" % (cmd, p.returncode, err)
+                    print >> sys.stderr, "Trying next fallback cmd..."
+        if out:
+            si.append( ('%s (%s)' % (cmdname, cmd), out) )
+        else:
+            si.append( ('%s (failed: "%s")' % (cmdname, '" AND "'.join(cmds[1:])), out) )
 
     # public SMOLT url
     pubUUIDFile = '/etc/sysconfig/pub-uuid-www.smolts.org'
@@ -120,28 +164,13 @@ def sysinfo():
         puburl = 'http://smolts.org/client/show_all/' + open(pubUUIDFile).read() + "\n"
     else:
         puburl = None
-    si.append( ('Smolt URL', puburl) )
+    si.insert(2, ('Smolt Profile URL', puburl) )
 
-    # selinux status
-    si.append( ('SELinux (sestatus)', os.popen('sestatus').read()) )
-    # load average
-    si.append( ('Load average (uptime)', os.popen('uptime').read()) )
-    # mem usage
-    si.append( ('Memory usage (free -m)', os.popen('free -m').read()) )
-    # disk space usage
-    si.append( ('Disk space usage (df -h)', os.popen('df -h').read()) )
-    # yum repos  - may fail
-    si.append( ('YUM Repositories (yum -C repolist)', os.popen('yum -C repolist').read()) )
-    # lspci
-    si.append( ('PCI devices (lspci)', os.popen('lspci').read()) )
-    # lsusb
-    si.append( ('USB devices (lsusb)', os.popen('lsusb').read()) )
-    # rpm -qa / dpkg -l
-    si.append( ('Installed packages (rpm -qa|sort)', os.popen('rpm -qa|sort').read()) )
+    sys.stderr.write("\n")
 
     # return in readable indented format
     sistr = "=== fpaste --sysinfo ===\n"
-    for k,v in si:
+    for k, v in si:
         sistr += "* %s:\n" % k
         if not v:
             sistr += "     N/A\n\n"
@@ -152,45 +181,63 @@ def sysinfo():
     return sistr
 
 
-if __name__ == "__main__":
-    validExpiresOpts = ['3600', '10800', '43200', '86400']
-    validSyntaxOpts = ['abap', 'antlr', 'antlr-as', 'antlr-cpp', 'antlr-csharp', 'antlr-java', 'antlr-objc', 'antlr-perl', 'antlr-python', 'antlr-ruby', 'apacheconf', 'applescript', 'as', 'as3', 'aspx-cs', 'aspx-vb', 'basemake', 'bash', 'bat', 'bbcode', 'befunge', 'boo', 'brainfuck', 'c', 'c-objdump', 'cheetah', 'clojure', 'common-lisp', 'console', 'control', 'cpp', 'cpp-objdump', 'csharp', 'css', 'css+django', 'css+erb', 'css+genshitext', 'css+mako', 'css+myghty', 'css+php', 'css+smarty', 'cython', 'd', 'd-objdump', 'delphi', 'diff', 'django', 'dpatch', 'dylan', 'erb', 'erl', 'erlang', 'evoque', 'fortran', 'gas', 'genshi', 'genshitext', 'glsl', 'gnuplot', 'groff', 'haskell', 'html', 'html+cheetah', 'html+django', 'html+evoque', 'html+genshi', 'html+mako', 'html+myghty', 'html+php', 'html+smarty', 'ini', 'io', 'irc', 'java', 'js', 'js+cheetah', 'js+django', 'js+erb', 'js+genshitext', 'js+mako', 'js+myghty', 'js+php', 'js+smarty', 'jsp', 'lhs', 'lighty', 'llvm', 'logtalk', 'lua', 'make', 'mako', 'matlab', 'matlabsession', 'minid', 'modelica', 'moocode', 'mupad', 'mxml', 'myghty', 'mysql', 'nasm', 'newspeak', 'nginx', 'numpy', 'objdump', 'objective-c', 'ocaml', 'perl', 'php', 'pot', 'pov', 'prolog', 'py3tb', 'pycon', 'pytb', 'python', 'python3', 'ragel', 'ragel-c', 'ragel-cpp', 'ragel-d', 'ragel-em', 'ragel-java', 'ragel-objc', 'ragel-ruby', 'raw', 'rb', 'rbcon', 'rebol', 'redcode', 'rhtml', 'rst', 'scala', 'scheme', 'smalltalk', 'smarty', 'sourceslist', 'splus', 'sql', 'sqlite3', 'squidconf', 'tcl', 'tcsh', 'tex', 'text', 'trac-wiki', 'vala', 'vb.net', 'vim', 'xml', 'xml+cheetah', 'xml+django', 'xml+erb', 'xml+evoque', 'xml+mako', 'xml+myghty', 'xml+php', 'xml+smarty', 'xslt', 'yaml']
+def generate_man_page():
+    '''TODO: generate man page from usage'''
+    pass
+
+
+def main():
+    validExpiresOpts = [ '3600', '10800', '43200', '86400' ]
+    validSyntaxOpts = [ 'abap', 'antlr', 'antlr-as', 'antlr-cpp', 'antlr-csharp', 'antlr-java', 'antlr-objc', 'antlr-perl', 'antlr-python', 'antlr-ruby', 'apacheconf', 'applescript', 'as', 'as3', 'aspx-cs', 'aspx-vb', 'basemake', 'bash', 'bat', 'bbcode', 'befunge', 'boo', 'brainfuck', 'c', 'c-objdump', 'cheetah', 'clojure', 'common-lisp', 'console', 'control', 'cpp', 'cpp-objdump', 'csharp', 'css', 'css+django', 'css+erb', 'css+genshitext', 'css+mako', 'css+myghty', 'css+php', 'css+smarty', 'cython', 'd', 'd-objdump', 'delphi', 'diff', 'django', 'dpatch', 'dylan', 'erb', 'erl', 'erlang', 'evoque', 'fortran', 'gas', 'genshi', 'genshitext', 'glsl', 'gnuplot', 'groff', 'haskell', 'html', 'html+cheetah', 'html+django', 'html+evoque', 'html+genshi', 'html+mako', 'html+myghty', 'html+php', 'html+smarty', 'ini', 'io', 'irc', 'java', 'js', 'js+cheetah', 'js+django', 'js+erb', 'js+genshitext', 'js+mako', 'js+myghty', 'js+php', 'js+smarty', 'jsp', 'lhs', 'lighty', 'llvm', 'logtalk', 'lua', 'make', 'mako', 'matlab', 'matlabsession', 'minid', 'modelica', 'moocode', 'mupad', 'mxml', 'myghty', 'mysql', 'nasm', 'newspeak', 'nginx', 'numpy', 'objdump', 'objective-c', 'ocaml', 'perl', 'php', 'pot', 'pov', 'prolog', 'py3tb', 'pycon', 'pytb', 'python', 'python3', 'ragel', 'ragel-c', 'ragel-cpp', 'ragel-d', 'ragel-em', 'ragel-java', 'ragel-objc', 'ragel-ruby', 'raw', 'rb', 'rbcon', 'rebol', 'redcode', 'rhtml', 'rst', 'scala', 'scheme', 'smalltalk', 'smarty', 'sourceslist', 'splus', 'sql', 'sqlite3', 'squidconf', 'tcl', 'tcsh', 'tex', 'text', 'trac-wiki', 'vala', 'vb.net', 'vim', 'xml', 'xml+cheetah', 'xml+django', 'xml+erb', 'xml+evoque', 'xml+mako', 'xml+myghty', 'xml+php', 'xml+smarty', 'xslt', 'yaml' ]
     validClipboardSelectionOpts = [ 'primary', 'secondary', 'clipboard' ]
-    #ext2lang_map = {}
+    ext2lang_map = { 'sh':'bash', 'bash':'bash', 'bat':'bat', 'c':'c', 'h':'c', 'cpp':'cpp', 'css':'css', 'html':'html', 'htm':'html', 'ini':'ini', 'java':'java', 'js':'js', 'jsp':'jsp', 'pl':'perl', 'php':'php', 'php3':'php', 'py':'python', 'rb':'rb', 'rhtml':'rhtml', 'sql':'sql', 'sqlite':'sqlite3', 'tcl':'tcl', 'vim':'vim', 'xml':'xml' }
+
     usage = """\
-usage: %prog [OPTION]... [FILE]...
-  Posts a file(s) to http://fpaste.org/ and returns the URL.
-  If no file arguments are given, input is expected on stdin.
+Usage: %prog [OPTION]... [FILE]...
+  send text file(s), stdin, or clipboard to the http://fpaste.org pastebin and return the URL.
 
 Examples:
-  %prog foo.txt
-  ifconfig | %prog -d "my network config"
-  %prog -n codemonkey -d "problem with foo" mycode.py"""
+  %prog file1.txt file2.txt
+  dmesg | %prog
+  (prog1; prog2; prog3) | fpaste
+  %prog --sysinfo -d "my laptop" --confirm
+  %prog -n codemonkey -d "problem with foo" -l python foo.py"""
 
-    #TODO: use parser's own 'choices' instead of dup'd validOpts
     parser = OptionParser(usage=usage, version='%prog '+VERSION)
-    parser.add_option('-n', dest='nick', help='your nickname; default is "%default"', metavar='"NICKNAME"')
-    parser.add_option('-d', dest='desc', help='description of paste; default appends filename(s)', metavar='"DESCRIPTION"')
-    parser.add_option('-l', dest='lang', help='language of the content to use for proper syntax highlighting; default is "%default"; Use "list" as parameter to show all ' + str(len(validSyntaxOpts)) + ' supported languages.', metavar='"LANGUAGE"')
-    parser.add_option('-x', dest='expires', help='time before paste is removed; default is "%default" seconds. valid options: ' + ', '.join(validExpiresOpts), metavar='"EXPIRES"')
-    parser.add_option('', '--fullpath', dest='fullpath', help='use fullpaths instead of trailing basenames for file descriptions. i.e.: "/home/johnsmith/src/foo.py" instead of "foo.py"', action="store_true", default=False)
-    parser.add_option('-p', '--pasteself', dest='pasteself', help='paste this script itself', action="store_true", default=False)
-    parser.add_option('', '--sysinfo', dest='sysinfo', help='paste system information', action="store_true", default=False)
-    parser.add_option('-i', '--clipin', dest='clipin', help='read paste text from current X clipboard selection', action="store_true", default=False)
-    parser.add_option('-o', '--clipout', dest='clipout', help='save returned paste URL to X clipboard', action="store_true", default=False)
-    parser.add_option('', '--selection', dest='selection', help='specify which X clipboard to use. valid options are "primary" (default; middle-mouse button paste), "secondary" (uncommon), or "clipboard" (ctrl-c/ctrl-v paste)', metavar='CLIPBOARD')
     parser.add_option('', '--debug', dest='debug', help=SUPPRESS_HELP, action="store_true", default=False)
-    parser.add_option('', '--printOnly', dest='printOnly', help='print paste, but do not send', action="store_true", default=False)
-    parser.add_option('', '--printConfirm', dest='printConfirm', help='print paste, and prompt for confirmation to send', action="store_true", default=False)
+    parser.add_option('', '--proxy', dest='proxy', help=SUPPRESS_HELP)
+
+    # pastebin-specific options first
+    fpasteOrg_group = OptionGroup(parser, "fpaste.org Options")
+    fpasteOrg_group.add_option('-n', dest='nick', help='your nickname; default is "%default"', metavar='"NICKNAME"')
+    fpasteOrg_group.add_option('-d', dest='desc', help='description of paste; default appends filename(s)', metavar='"DESCRIPTION"')
+    fpasteOrg_group.add_option('-l', dest='lang', help='language of content for syntax highlighting; default is "%default"; use "list" to show all ' + str(len(validSyntaxOpts)) + ' supported langs', metavar='"LANGUAGE"')
+    fpasteOrg_group.add_option('-x', dest='expires', help='time before paste is removed; default is %default seconds; valid options: ' + ', '.join(validExpiresOpts), metavar='EXPIRES')
+    parser.add_option_group(fpasteOrg_group)
+    # other options
+    fpasteProg_group = OptionGroup(parser, "Input/Output Options")
+    fpasteProg_group.add_option('-i', '--clipin', dest='clipin', help='read paste text from current X clipboard selection', action="store_true", default=False)
+    fpasteProg_group.add_option('-o', '--clipout', dest='clipout', help='save returned paste URL to X clipboard', action="store_true", default=False)
+    fpasteProg_group.add_option('', '--selection', dest='selection', help='specify which X clipboard to use. valid options: "primary" (default; middle-mouse-button paste), "secondary" (uncommon), or "clipboard" (ctrl-v paste)', metavar='CLIP')
+    fpasteProg_group.add_option('', '--fullpath', dest='fullpath', help='use pathname VS basename for file description(s)', action="store_true", default=False)
+    fpasteProg_group.add_option('', '--pasteself', dest='pasteself', help='paste this script itself', action="store_true", default=False)
+    fpasteProg_group.add_option('', '--sysinfo', dest='sysinfo', help='paste system information', action="store_true", default=False)
+    fpasteProg_group.add_option('', '--printonly', dest='printonly', help='print paste, but do not send', action="store_true", default=False)
+    fpasteProg_group.add_option('', '--confirm', dest='confirm', help='print paste, and prompt for confirmation before sending', action="store_true", default=False)
+    parser.add_option_group(fpasteProg_group)
 
     parser.set_defaults(desc='', nick='', lang='text', expires=max(validExpiresOpts), selection='primary')
     (options, args) = parser.parse_args()
 
-    if options.lang == 'list':
+    if options.lang.lower() == 'list':
         print 'Valid language syntax options:'
         for opt in validSyntaxOpts:
             print opt
         sys.exit(0)
+    if options.clipin:
+        if not os.access('/usr/bin/xsel', os.X_OK):
+            # TODO: try falling back to xclip or dbus
+            parser.error('OOPS - the clipboard options currently depend on "/usr/bin/xsel", which does not appear to be installed')
     if options.clipin and args:
         parser.error("Sending both clipboard contents AND files is not supported. Use -i OR filename(s)")
     for optk, optv, opts in [('language', options.lang, validSyntaxOpts), ('expires', options.expires, validExpiresOpts), ('clipboard selection', options.selection, validClipboardSelectionOpts)]:
@@ -198,31 +245,55 @@ Examples:
             parser.error("'%s' is not a valid %s option.\n\tVALID OPTIONS: %s" % (optv, optk, ', '.join(opts)))
 
     fileargs = args
-    if not options.fullpath:
+    if options.fullpath:
+        fileargs = [os.path.abspath(x) for x in args]
+    else:
         fileargs = [os.path.basename(x) for x in args]  # remove potentially non-anonymous path info from file path descriptions
 
-    text = ""
+    #guess lang for some common file extensions, if all file exts similar, and lang not changed from default
+    if options.lang == 'text':
+        all_exts_similar = False
+        for i in range(0, len(args)):
+            all_exts_similar = True
+            ext = os.path.splitext(args[i])[1].lstrip(os.extsep)
+            if i > 0 and ext != ext_prev:
+                all_exts_similar = False
+                break
+            ext_prev = ext
+        if all_exts_similar and ext in ext2lang_map.keys():
+            options.lang = ext2lang_map[ext]
+
     # get input from mutually exclusive sources, though they *could* be combined
+    text = ""
     if options.clipin:
         xselcmd = 'xsel -o --%s' % options.selection
-        text = os.popen(xselcmd).read()
+        #text = os.popen(xselcmd).read()
+        p = subprocess.Popen(xselcmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        (text, err) = p.communicate()
+        if p.returncode != 0:
+            if options.debug:
+                print >> sys.stderr, err
+            parser.error("'xsel' failure. this usually means you're not running X")
         if not text:
-            parser.error("Error reading from %s clipboard" % options.selection)
+            parser.error("%s clipboard is empty" % options.selection)
+        if SET_DESCRIPTION_IF_EMPTY and not options.desc:
+            options.desc = '%s clipboard' % options.selection
     elif options.pasteself:
         text = open(sys.argv[0]).read()
         options.desc = 'fpaste'
         options.lang = 'python'
         options.nick = 'Fedora Unity'
     elif options.sysinfo:
-        text = sysinfo()
-        #options.desc = 'fpaste --sysinfo'
+        text = sysinfo(options.debug)
+        if SET_DESCRIPTION_IF_EMPTY and not options.desc:
+            options.desc = 'fpaste --sysinfo'
     elif not args:   # read from stdin if no file args supplied
-        if not options.desc:
+        if SET_DESCRIPTION_IF_EMPTY and not options.desc:
             options.desc = 'stdin'
         try:
             text += sys.stdin.read()
         except KeyboardInterrupt:
-            print >> sys.stderr, "\nUSAGE REMINDER:\n   fpaste waits for input when run without file arguments.\n   Paste your text, then press <Ctrl-D> on a new line to upload.\n   Use 'fpaste --help' for more options.\nExiting..."
+            print >> sys.stderr, "\nUSAGE REMINDER:\n   fpaste waits for input when run without file arguments.\n   Paste your text, then press <Ctrl-D> on a new line to upload.\n   Try `fpaste --help' for more information.\nExiting..."
             sys.exit(1)
     else:
         if not options.desc:
@@ -233,26 +304,44 @@ Examples:
             if not os.access(f, os.R_OK):
                 parser.error("file '%s' is not readable" % f)
             if (len(args) > 1):     # separate multiple files with header
-                text += '#' * 70 + '\n'
+                text += '#' * 78 + '\n'
                 text += '### file %d of %d: %s\n' % (i+1, len(args), fileargs[i])
-                text += '#' * 70 + '\n'
+                text += '#' * 78 + '\n'
             text += open(f).read()
 
-    if options.printOnly:
-        print text
+    if options.debug:
+        print 'nick: "%s"' % options.nick
+        print 'desc: "%s"' % options.desc
+        print 'lang: "%s"' % options.lang
+        print 'text (%d): "%s ..."' % (len(text), text[:80])
+
+    if options.printonly or options.confirm:
+        try:
+            if is_text(text):
+                print text   # when piped to less, sometimes fails with [Errno 32] Broken pipe
+            else:
+                print "DATA"
+        except IOError:
+            pass
+    if options.printonly:   # print only what would be sent, and exit
         sys.exit(0)
-    elif options.printConfirm:
-        print text
-        if not sendConfirm("OK to send? [y/N]: "):
+    elif options.confirm:   # print what would be sent, and ask for permission
+        if not confirm("OK to send?"):
             sys.exit(1)
 
     url = paste(text, options)
     if url:
         print url
-        if options.clipout: # try save URL in clipboard too
-            # TODO: use subprocess here instead of popen
-            xselcmd = 'xsel -i --%s 2>/dev/null' % options.selection
-            os.popen(xselcmd, 'wb').write(url)
+        # try to save URL in clipboard, and warn but don't error
+        if options.clipout:
+            xselcmd = 'xsel -i --%s' % options.selection
+            #os.popen(xselcmd, 'wb').write(url)
+            p = subprocess.Popen(xselcmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+            (out, err) = p.communicate(input=url)
+            if p.returncode != 0:
+                if options.debug:
+                    print >> sys.stderr, err
+                #parser.error("'xsel' failure. this usually means you're not running X")
     else:
         sys.exit(1)
 
@@ -260,3 +349,14 @@ Examples:
         print >> sys.stderr, "install fpaste to local ~/bin dir by running:    mkdir -p ~/bin; curl " + url + "raw/ -o ~/bin/fpaste && chmod +x ~/bin/fpaste"
 
     sys.exit(0)
+
+
+if __name__ == '__main__':
+    try:
+        if '--generate-man' in sys.argv:
+            generate_man_page()
+        else:
+            main()
+    except KeyboardInterrupt:
+        print "\ninterrupted."
+        sys.exit(1)

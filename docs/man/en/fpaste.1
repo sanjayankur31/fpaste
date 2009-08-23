@@ -1,7 +1,7 @@
 .\" first draft by Ankur Sinha &lt;ankursinha at fedoraproject.org&gt;
-.TH "fpaste" "1" "version 0.3.3" "Fedora Unity" ""
+.TH "fpaste" "1" "version 0.3.4" "Fedora Unity" ""
 .SH "NAME"
-fpaste \- A simple tool for pasting info onto fpaste.org
+fpaste \- A cli frontend for the fpaste.org pastebin
 .SH "SYNOPSIS"
 \fBfpaste\fR [\fIOPTION\fR]... [\fIFILE\fR]...
 .SH "DESCRIPTION"
@@ -21,19 +21,12 @@ your nickname; default is ""
 description of paste; default appends filename(s)
 .TP 
 \fB\-l "LANGUAGE"\fR
-language of the content to use for proper syntax highlighting; default is "text"; Use "list" as parameter to show all supported languages.
+language of content for syntax highlighting; default is "text"; use "list" to show all 160 supported langs
 .TP 
 \fB\-x "EXPIRES"\fR
-time before paste is removed; default is "86400" seconds. Valid options: 3600, 10800, 43200, 86400
-.TP 
-\fB\-\-fullpath\fR
-Use fullpaths instead of trailing basenames for file descriptions. i.e.: "/home/johnsmith/src/foo.py" instead of "foo.py"
-.TP 
-\fB\-p, \-\-pasteself\fR
-Paste the script itself
-.TP 
-\fB\-\-sysinfo\fR
-paste system information
+time before paste is removed; default is 86400 seconds; valid options: 3600, 10800, 43200, 86400
+
+.br 
 .TP 
 \fB\-i, \-\-clipin\fR
 read paste text from current X clipboard selection
@@ -42,7 +35,22 @@ read paste text from current X clipboard selection
 save returned paste URL to X clipboard
 .TP 
 \fB\-\-selection=CLIPBOARD\fR
-specify which X clipboard to use. valid options are "primary" (default; middle\-mouse button paste), "secondary" (uncommon), or "clipboard" (ctrl\-c/ctrl\-v paste)
+specify which X clipboard to use. valid options: "primary" (default; middle\-mouse\-button paste), "secondary" (uncommon), or "clipboard" (ctrl\-v paste)
+.TP 
+\fB\-\-fullpath\fR
+use pathname VS basename for file description(s)
+.TP 
+\fB\-\-pasteself\fR
+paste this script itself
+.TP 
+\fB\-\-sysinfo\fR
+paste system information
+.TP 
+\fB\-\-printonly\fR
+print paste, but do not send
+.TP 
+\fB\-\-confirm\fR
+print paste, and prompt for confirmation before sending
 .SH "EXAMPLES"
 .TP 
 Paste file foo.txt at fpaste.org
@@ -61,7 +69,7 @@ Paste mouse\-selected text from the primary X selection clipboard, and then over
 .IP 
 \fBfpaste \-io\fR
 .TP 
-To manually paste \fIclipboard\fR contents, run \fBfpaste\fR without file arguments so that it waits for input, then paste using mouse middle\-click, <Ctrl\-V>, or other, then press <Enter> followed by <Ctrl\-D> to finish (EOF).
+To \fImanually paste clipboard\fR contents, run \fBfpaste\fR without file arguments so that it waits for input, then paste using mouse middle\-click, <Ctrl\-V>, or other, then press <Enter> followed by <Ctrl\-D> to finish (EOF).
 .TP 
 To paste the output of more than one program and/or file at a time, use the following example forms:
 .IP 
@@ -76,6 +84,14 @@ To paste the output of more than one program and/or file at a time, use the foll
 .br 
 
 \fB(uname \-a ; yum repolist) | fpaste\fR
+.TP 
+Gather and paste various information about the running system. The info collected should be practically anonymous, and you may use the \-\-printonly or \-\-confirm options to preview what would be sent. fpaste.org URLs are also practically anonymous ([a\-zA\-Z0\-9]**4 == 14,776,336 combinations), so you may also preview it instead before giving the link out.
+.IP 
+\fBfpaste \-\-sysinfo\fR
+.br 
+\fBfpaste \-\-sysinfo \-\-confirm\fR
+.br 
+\fBfpaste \-\-sysinfo \-\-printonly | less\fR
 .SH "BUGS"
 Report bugs to: https://fedorahosted.org/fpaste/newticket
 .br 
