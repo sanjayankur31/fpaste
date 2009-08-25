@@ -1,5 +1,9 @@
 fpaste ChangeLog
 
+0.3.future
+=====
+ *) --sysinfo: detect running and installed Desktop Environment(s)
+
 0.3.4 - 20090823
 =====
  *) Validate paste size and content as non-binary before sending; user is

@@ -68,6 +68,7 @@ def confirm(prompt = "OK?"):
 
 def paste(text, options):
     '''send text to fpaste.org and return the URL'''
+    import re
     if not text:
         print >> sys.stderr, "No text to send."
         return False
@@ -104,29 +105,45 @@ def paste(text, options):
             print >> sys.stderr, "Server Error: %d - %s" % (e.code, e.msg)
             if e.code == 500:
                 print >> sys.stderr, "500 often means your paste was too large. You tried uploading %dKiB. A pastebin is NOT a file hosting service!" % (pasteSizeKiB)
-        return 0
-    return f.geturl()
+            if options.debug:
+                print f.read()
+        return False
+
+    url = f.geturl()
+    # minimally validate the returned url, as it is sometimes just "http://fpaste.org/" VS "http://fpaste.org/????/" without hitting an error above
+    #if re.match('http://fpaste.org/?[a-zA-Z0-9]+/?$', url):
+    if re.match('http://fpaste.org/?.+', url):
+        return url
+    else:
+        print >> sys.stderr, "Invalid fpaste URL '%s' returned. This should not happen. Use --debug to see server output" % url
+        if options.debug:
+            print f.read()
+        return False
 
 
-def sysinfo(show_stderr = 0):
+
+def sysinfo(show_stderr = False, show_successful_cmds = True, show_failed_cmds = True):
     '''returns commonly requested (and some fedora-specific) system info'''
     # what all *should* be gathered (as non-root)? and what's too 'private'? ask for perm before sending?
     # 'ps' output below has been anonymized: -n for uid vs username, and -c for short processname
 
     # cmd name, command, command2 fallback, command3 fallback, ...
     cmdlist = [
-        ('OS Release',         '''lsb_release -ds''', '''cat /etc/*-release | uniq'''),
+        ('OS Release',         '''lsb_release -ds''', '''cat /etc/*-release | uniq''', 'cat /etc/issue', 'cat /etc/motd'),
         ('Kernel',             '''uname -r'''),
         #('Smolt Profile URL',  '''f="/etc/sysconfig/pub-uuid-www.smolts.org"; [ -r "$f" ] && echo "http://smolts.org/client/show_all/$(cat $f)"'''),
+        #OVERKILL  ('Desktop(s) Running', '''printenv DESKTOP_SESSION''', '''xprop -id $(xprop -root _NET_SUPPORTING_WM_CHECK | cut -d' ' -f5) 8s _NET_WM_NAME | cut -d= -f2''', '''[ "$(pidof gnome-session)" ] && echo "Gnome" ; [ "$(pidof ksmserver)" ] && echo "KDE" ; [ "$(pidof xfce-mcs-manage)" ] && echo "XFCE"''', '''ps -eo comm | egrep 'gnome-session|kdeinit|xfce-mcs-manage|fluxbox' '''),
+        ('Desktop(s) Running', '''ps -eo comm= | egrep '(gnome-session|kdeinit|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session)' '''),
+        ('Desktop(s) Installed', '''ls -m /usr/share/xsessions'''),
+        ('SELinux',            '''sestatus''', '''/usr/sbin/sestatus''', '''getenforce''', '''grep -v '^#' /etc/sysconfig/selinux'''),
         ('64-bit Support',     '''grep -q ' lm ' /proc/cpuinfo && echo Yes || echo No'''),
         ('Hardware Virtualization Support', '''egrep -q '(vmx|svm)' /proc/cpuinfo && echo Yes || echo No'''),
-        ('SELinux',            '''sestatus''', '''/usr/sbin/sestatus''', '''getenforce''', '''grep -v '^#' /etc/sysconfig/selinux'''),
         ('Load average',       '''uptime'''),
-        ('Memory usage',       '''free -m'''),
+        ('Memory usage',       '''free -m''', 'free'),
         #('Top',                '''top -n1 -b | head -15'''),
         ('Top 5 CPU hogs',     '''ps axuScnh | awk '$2!=''' + str(os.getpid()) + '''' | sort -rnk3 | head -5'''),
         ('Top 5 Memory hogs',  '''ps axuScnh | sort -rnk4 | head -5'''),
-        ('Disk space usage',   '''df -h'''),
+        ('Disk space usage',   '''df -Th''', 'df -h', 'df'),
         ('Block devices',      '''blkid''', '''/sbin/blkid'''),
         ('PCI devices',        '''lspci''', '''/sbin/lspci'''),
         ('USB devices',        '''lsusb''', '''/sbin/lsusb'''),
@@ -139,6 +156,7 @@ def sysinfo(show_stderr = 0):
         #('Last 20 packages installed', '''rpm -qa --last | head -20'''),
         ('Installed packages', '''rpm -qa | sort''', '''dpkg -l''') ]
     si = []
+
     print >> sys.stderr, "Gathering system info",
     for cmds in cmdlist:
         cmdname = cmds[0]
@@ -154,9 +172,15 @@ def sysinfo(show_stderr = 0):
                     print >> sys.stderr, "sysinfo Error: the cmd \"%s\" returned %d with stderr: %s" % (cmd, p.returncode, err)
                     print >> sys.stderr, "Trying next fallback cmd..."
         if out:
-            si.append( ('%s (%s)' % (cmdname, cmd), out) )
+            if show_successful_cmds:
+                si.append( ('%s (%s)' % (cmdname, cmd), out) )
+            else:
+                si.append( ('%s' % cmdname, out) )
         else:
-            si.append( ('%s (failed: "%s")' % (cmdname, '" AND "'.join(cmds[1:])), out) )
+            if show_failed_cmds:
+                si.append( ('%s (failed: "%s")' % (cmdname, '" AND "'.join(cmds[1:])), out) )
+            else:
+                si.append( ('%s' % cmdname, out) )
 
     # public SMOLT url
     pubUUIDFile = '/etc/sysconfig/pub-uuid-www.smolts.org'
@@ -169,13 +193,13 @@ def sysinfo(show_stderr = 0):
     sys.stderr.write("\n")
 
     # return in readable indented format
-    sistr = "=== fpaste --sysinfo ===\n"
-    for k, v in si:
-        sistr += "* %s:\n" % k
-        if not v:
+    sistr = "=== fpaste %s System Information (fpaste --sysinfo) ===\n" % VERSION
+    for cmdname, output in si:
+        sistr += "* %s:\n" % cmdname
+        if not output:
             sistr += "     N/A\n\n"
         else:
-            for line in v.split('\n'):
+            for line in output.split('\n'):
                 sistr += "     %s\n" % line
 
     return sistr
@@ -331,7 +355,6 @@ Examples:
 
     url = paste(text, options)
     if url:
-        print url
         # try to save URL in clipboard, and warn but don't error
         if options.clipout:
             xselcmd = 'xsel -i --%s' % options.selection
@@ -342,6 +365,9 @@ Examples:
                 if options.debug:
                     print >> sys.stderr, err
                 #parser.error("'xsel' failure. this usually means you're not running X")
+                print >> sys.stderr, "WARNING: URL not saved to clipboard"
+
+        print url
     else:
         sys.exit(1)
 
