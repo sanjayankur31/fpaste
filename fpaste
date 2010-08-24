@@ -131,7 +131,6 @@ def sysinfo(show_stderr = False, show_successful_cmds = True, show_failed_cmds =
     cmdlist = [
         ('OS Release',         '''lsb_release -ds''', '''cat /etc/*-release | uniq''', 'cat /etc/issue', 'cat /etc/motd'),
         ('Kernel',             '''uname -r'''),
-        #('Smolt Profile URL',  '''f="/etc/sysconfig/pub-uuid-www.smolts.org"; [ -r "$f" ] && echo "http://smolts.org/client/show_all/$(cat $f)"'''),
         #OVERKILL  ('Desktop(s) Running', '''printenv DESKTOP_SESSION''', '''xprop -id $(xprop -root _NET_SUPPORTING_WM_CHECK | cut -d' ' -f5) 8s _NET_WM_NAME | cut -d= -f2''', '''[ "$(pidof gnome-session)" ] && echo "Gnome" ; [ "$(pidof ksmserver)" ] && echo "KDE" ; [ "$(pidof xfce-mcs-manage)" ] && echo "XFCE"''', '''ps -eo comm | egrep 'gnome-session|kdeinit|xfce-mcs-manage|fluxbox' '''),
         ('Desktop(s) Running', '''ps -eo comm= | egrep '(gnome-session|kdeinit|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session)' '''),
         ('Desktop(s) Installed', '''ls -m /usr/share/xsessions'''),
@@ -183,10 +182,14 @@ def sysinfo(show_stderr = False, show_successful_cmds = True, show_failed_cmds =
                 si.append( ('%s' % cmdname, out) )
 
     # public SMOLT url
-    pubUUIDFile = '/etc/sysconfig/pub-uuid-www.smolts.org'
-    if os.access(pubUUIDFile, os.R_OK):
-        puburl = 'http://smolts.org/client/show_all/' + open(pubUUIDFile).read() + "\n"
-    else:
+    try:
+        sys.path.append('/usr/share/smolt/client')
+        from smolt import get_profile_link, getPubUUID
+        from smolt_config import get_config_attr
+        smoonurl = get_config_attr("SMOON_URL", "http://smolts.org/")
+        pubuuid = getPubUUID()
+        puburl = get_profile_link(smoonurl, pubuuid)+os.linesep
+    except:
         puburl = None
     si.insert(2, ('Smolt Profile URL', puburl) )
 
