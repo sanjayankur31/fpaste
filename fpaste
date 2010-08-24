@@ -147,6 +147,7 @@ def sysinfo(show_stderr = False, show_successful_cmds = True, show_failed_cmds =
         ('PCI devices',        '''lspci''', '''/sbin/lspci'''),
         ('USB devices',        '''lsusb''', '''/sbin/lsusb'''),
         ('X errors',           '''grep '^(EE)' /var/log/Xorg.0.log'''),
+        ('GL info',            '''glxinfo | egrep "OpenGL version|OpenGL renderer"'''),
         ('Kernel buffer tail', '''dmesg | tail'''),
         ('Last few reboots',   '''last -x -n10 reboot runlevel'''),
         ('YUM Repositories',   '''yum -C repolist''', '''ls -l /etc/yum.repos.d''', '''grep -v '^#' /etc/yum.conf'''),
