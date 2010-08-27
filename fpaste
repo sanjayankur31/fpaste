@@ -130,7 +130,7 @@ def sysinfo(show_stderr = False, show_successful_cmds = True, show_failed_cmds =
     # cmd name, command, command2 fallback, command3 fallback, ...
     cmdlist = [
         ('OS Release',         '''lsb_release -ds''', '''cat /etc/*-release | uniq''', 'cat /etc/issue', 'cat /etc/motd'),
-        ('Kernel',             '''uname -r'''),
+        ('Kernel',             '''uname -r ; cat /proc/cmdline'''),
         #OVERKILL  ('Desktop(s) Running', '''printenv DESKTOP_SESSION''', '''xprop -id $(xprop -root _NET_SUPPORTING_WM_CHECK | cut -d' ' -f5) 8s _NET_WM_NAME | cut -d= -f2''', '''[ "$(pidof gnome-session)" ] && echo "Gnome" ; [ "$(pidof ksmserver)" ] && echo "KDE" ; [ "$(pidof xfce-mcs-manage)" ] && echo "XFCE"''', '''ps -eo comm | egrep 'gnome-session|kdeinit|xfce-mcs-manage|fluxbox' '''),
         ('Desktop(s) Running', '''ps -eo comm= | egrep '(gnome-session|kdeinit|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session)' '''),
         ('Desktop(s) Installed', '''ls -m /usr/share/xsessions'''),
