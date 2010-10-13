@@ -155,8 +155,8 @@ def sysinfo(show_stderr = False, show_successful_cmds = True, show_failed_cmds =
         ('YUM Repositories',   '''yum -C repolist''', '''ls -l /etc/yum.repos.d''', '''grep -v '^#' /etc/yum.conf'''),
         ('YUM Extras',         '''yum -C list extras'''),
         #('/var/log/boot.log',  '''cat /var/log/boot.log'''),
-        #('Last 20 packages installed', '''rpm -qa --last | head -20'''),
-        ('Installed packages', '''rpm -qa | sort''', '''dpkg -l''') ]
+        ('Last 20 packages installed', '''rpm -qa --nodigest --nosignature --last | head -20''')]
+        #('Installed packages', '''rpm -qa --nodigest --nosignature | sort''', '''dpkg -l''') ]
     si = []
 
     print >> sys.stderr, "Gathering system info",
