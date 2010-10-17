@@ -1,6 +1,6 @@
 fpaste ChangeLog
 
-0.4 - 2010XXXX
+0.3.5 - 201010XX
 =====
  *) --sysinfo: detect running and installed Desktop Environment(s)
  *) --sysinfo: Show filesystem type in df -hT output
