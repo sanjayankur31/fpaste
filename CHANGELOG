@@ -1,8 +1,11 @@
 fpaste ChangeLog
 
-0.3.future
+0.4 - 2010XXXX
 =====
  *) --sysinfo: detect running and installed Desktop Environment(s)
+ *) --sysinfo: Show filesystem type in df -hT output
+ *) --sysinfo: Smolt fixed, GL and other additions. by Francois Cami
+ *) --sysinfo: Optimized: rpm -qa --list --nodigest --nosignature. by Dave Riches
 
 0.3.4 - 20090823
 =====
