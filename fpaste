@@ -393,7 +393,7 @@ def summarize_text(text):
     text = " ".join(text.split())   # nuke whitespace
     tlen = len(text)
 
-    if tlen < spinlen+seplen:
+    if tlen < sniplen+seplen:
         tsum += text
     if tlen >= sniplen+seplen:
         tsum += text[0:sniplen] + " ..."
