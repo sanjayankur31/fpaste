@@ -1,5 +1,9 @@
 fpaste ChangeLog
 
+0.3.6 - 201XXXXX
+ *) stdin and clipboard descriptions now default to showing a small text summary
+    of the form "beginning ... middle ... end". sysinfo desc shows "fpaste --sysinfo"
+
 0.3.5 - 201010XX
 =====
  *) --sysinfo: detect running and installed Desktop Environment(s)

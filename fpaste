@@ -18,7 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 VERSION = '0.3.5'
 USER_AGENT = 'fpaste/' + VERSION
-SET_DESCRIPTION_IF_EMPTY = 0  # stdin, clipboard, sysinfo
+SET_DESCRIPTION_IF_EMPTY = 1  # stdin, clipboard, sysinfo
 
 import os, sys, urllib, urllib2
 from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
@@ -307,10 +307,11 @@ Examples:
         if not text:
             parser.error("%s clipboard is empty" % options.selection)
         if SET_DESCRIPTION_IF_EMPTY and not options.desc:
-            options.desc = '%s clipboard' % options.selection
+            #options.desc = '%s clipboard' % options.selection
+            options.desc = summarize_text(text)
     elif options.pasteself:
         text = open(sys.argv[0]).read()
-        options.desc = 'fpaste'
+        options.desc = 'fpaste-' + VERSION
         options.lang = 'python'
         options.nick = 'Fedora Unity'
     elif options.sysinfo:
@@ -318,13 +319,13 @@ Examples:
         if SET_DESCRIPTION_IF_EMPTY and not options.desc:
             options.desc = 'fpaste --sysinfo'
     elif not args:   # read from stdin if no file args supplied
-        if SET_DESCRIPTION_IF_EMPTY and not options.desc:
-            options.desc = 'stdin'
         try:
             text += sys.stdin.read()
         except KeyboardInterrupt:
             print >> sys.stderr, "\nUSAGE REMINDER:\n   fpaste waits for input when run without file arguments.\n   Paste your text, then press <Ctrl-D> on a new line to upload.\n   Try `fpaste --help' for more information.\nExiting..."
             sys.exit(1)
+        if SET_DESCRIPTION_IF_EMPTY and not options.desc:
+            options.desc = summarize_text(text)
     else:
         if not options.desc:
             options.desc = '%s' % (' + '.join(fileargs))
@@ -381,6 +382,26 @@ Examples:
         print >> sys.stderr, "install fpaste to local ~/bin dir by running:    mkdir -p ~/bin; curl " + url + "raw/ -o ~/bin/fpaste && chmod +x ~/bin/fpaste"
 
     sys.exit(0)
+
+def summarize_text(text):
+    # use beginning/middle/end content snippets as a description summary. 120 char limit
+    # "36chars ... 36chars ... 36chars" == 118 chars
+    # TODO: nuking whitespace in huge text files might be expensive; optimize for b/m/e segments only
+    sniplen = 36
+    seplen = len(" ... ")
+    tsum = ""
+    text = " ".join(text.split())   # nuke whitespace
+    tlen = len(text)
+
+    if tlen >= sniplen+seplen:
+        tsum += text[0:sniplen] + " ..."
+    if tlen >= (sniplen*2)+seplen:
+        tsum += " " + text[tlen/2-(sniplen/2):(tlen/2)+(sniplen/2)] + " ..."
+    if tlen >= (sniplen*3)+(seplen*2):
+        tsum += " " + text[-sniplen:]
+    #print >> sys.stderr, str(len(tsum)) + ": " + tsum
+
+    return tsum
 
 
 if __name__ == '__main__':
