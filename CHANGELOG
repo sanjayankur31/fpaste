@@ -1,6 +1,7 @@
 fpaste ChangeLog
 
 0.3.6 - 201XXXXX
+ *) --sysinfo: modelname from cpuinfo added
  *) stdin and clipboard descriptions now default to showing a small text summary
     of the form "beginning ... middle ... end". sysinfo desc shows "fpaste --sysinfo"
 

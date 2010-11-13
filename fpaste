@@ -134,6 +134,7 @@ def sysinfo(show_stderr = False, show_successful_cmds = True, show_failed_cmds =
         ('Desktop(s) Running', '''ps -eo comm= | egrep '(gnome-session|kdeinit|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session)' '''),
         ('Desktop(s) Installed', '''ls -m /usr/share/xsessions'''),
         ('SELinux',            '''sestatus''', '''/usr/sbin/sestatus''', '''getenforce''', '''grep -v '^#' /etc/sysconfig/selinux'''),
+        ('CPU Model',     '''grep 'model name' /proc/cpuinfo | awk -F: '{print $2}' | uniq -c | sed -re 's/^ +//' ''', '''grep 'model name' /proc/cpuinfo'''),
         ('64-bit Support',     '''grep -q ' lm ' /proc/cpuinfo && echo Yes || echo No'''),
         ('Hardware Virtualization Support', '''egrep -q '(vmx|svm)' /proc/cpuinfo && echo Yes || echo No'''),
         ('Load average',       '''uptime'''),
