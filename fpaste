@@ -78,8 +78,6 @@ def paste(text, options):
 
     if pasteSizeKiB > 8*1024:   # 16MB is the current hard limit
         print >> sys.stderr, "WARNING: your paste size (%.1fM) is ridiculously large and may be rejected by the server. A pastebin is NOT a file hosting service!" % (pasteSizeKiB/1024)
-        if not confirm("Send huge paste anyway?"):
-            return False
     elif pasteSizeKiB > 1024:
         print >> sys.stderr, "WARNING: your paste size (%.1fM) is over 1MB. A pastebin is NOT a file hosting service!" % (pasteSizeKiB/1024)
     # verify that it's most likely *non-binary* data being sent.
