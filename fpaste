@@ -127,7 +127,7 @@ def sysinfo(show_stderr = False, show_successful_cmds = True, show_failed_cmds =
         ('Desktop(s) Running', '''ps -eo comm= | egrep '(gnome-session|kdeinit|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session)' '''),
         ('Desktop(s) Installed', '''ls -m /usr/share/xsessions/ | sed 's/\.desktop//g' '''),
         ('SELinux Status',      '''sestatus''', '''/usr/sbin/sestatus''', '''getenforce''', '''grep -v '^#' /etc/sysconfig/selinux'''),
-        ('SELinux Error Count', '''selinuxenabled && (grep avc: /var/log/messages; ausearch -m avc -ts today)2>/dev/null|egrep -o "comm=\"[^ ]+"|sort|uniq -c|sort -rn'''),
+        ('SELinux Error Count', '''selinuxenabled && (grep avc: /var/log/messages; ausearch -m avc -ts today)2>/dev/null|egrep -o "comm=\\"[^ ]+"|sort|uniq -c|sort -rn'''),
         ('CPU Model',          '''grep 'model name' /proc/cpuinfo | awk -F: '{print $2}' | uniq -c | sed -re 's/^ +//' ''', '''grep 'model name' /proc/cpuinfo'''),
         ('64-bit Support',     '''grep -q ' lm ' /proc/cpuinfo && echo Yes || echo No'''),
         ('Hardware Virtualization Support', '''egrep -q '(vmx|svm)' /proc/cpuinfo && echo Yes || echo No'''),
@@ -207,6 +207,30 @@ def sysinfo(show_stderr = False, show_successful_cmds = True, show_failed_cmds =
 def generate_man_page():
     '''TODO: generate man page from usage'''
     pass
+
+
+def summarize_text(text):
+    # use beginning/middle/end content snippets as a description summary. 120 char limit
+    # "36chars ... 36chars ... 36chars" == 118 chars
+    # TODO: nuking whitespace in huge text files might be expensive; optimize for b/m/e segments only
+    sniplen = 36
+    seplen = len(" ... ")
+    tsum = ""
+    text = " ".join(text.split())   # nuke whitespace
+    tlen = len(text)
+
+    if tlen < sniplen+seplen:
+        tsum += text
+    if tlen >= sniplen+seplen:
+        tsum += text[0:sniplen] + " ..."
+    if tlen >= (sniplen*2)+seplen:
+        tsum += " " + text[tlen/2-(sniplen/2):(tlen/2)+(sniplen/2)] + " ..."
+    if tlen >= (sniplen*3)+(seplen*2):
+        tsum += " " + text[-sniplen:]
+    #print >> sys.stderr, str(len(tsum)) + ": " + tsum
+
+    return tsum
+
 
 
 def main():
@@ -375,28 +399,6 @@ Examples:
         print >> sys.stderr, "install fpaste to local ~/bin dir by running:    mkdir -p ~/bin; curl " + url + "raw/ -o ~/bin/fpaste && chmod +x ~/bin/fpaste"
 
     sys.exit(0)
-
-def summarize_text(text):
-    # use beginning/middle/end content snippets as a description summary. 120 char limit
-    # "36chars ... 36chars ... 36chars" == 118 chars
-    # TODO: nuking whitespace in huge text files might be expensive; optimize for b/m/e segments only
-    sniplen = 36
-    seplen = len(" ... ")
-    tsum = ""
-    text = " ".join(text.split())   # nuke whitespace
-    tlen = len(text)
-
-    if tlen < sniplen+seplen:
-        tsum += text
-    if tlen >= sniplen+seplen:
-        tsum += text[0:sniplen] + " ..."
-    if tlen >= (sniplen*2)+seplen:
-        tsum += " " + text[tlen/2-(sniplen/2):(tlen/2)+(sniplen/2)] + " ..."
-    if tlen >= (sniplen*3)+(seplen*2):
-        tsum += " " + text[-sniplen:]
-    #print >> sys.stderr, str(len(tsum)) + ": " + tsum
-
-    return tsum
 
 
 if __name__ == '__main__':
