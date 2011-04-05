@@ -20,9 +20,8 @@ VERSION = '0.3.6'
 USER_AGENT = 'fpaste/' + VERSION
 SET_DESCRIPTION_IF_EMPTY = 1  # stdin, clipboard, sysinfo
 
-import os, sys, urllib, urllib2
+import os, sys, urllib, urllib2, subprocess
 from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
-import subprocess
 
 def is_text(text, maxCheck = 100, pctPrintable = 0.75):
     '''returns true if maxCheck evenly distributed chars in text are >= pctPrintable% text chars'''
@@ -45,19 +44,17 @@ def is_text(text, maxCheck = 100, pctPrintable = 0.75):
 
 def confirm(prompt = "OK?"):
     '''prompt user for yes/no input and return True or False'''
-    # need a workaround to read user input from raw_input following sys.stdin
     prompt += " [y/N]: "
     try:
         ans = raw_input(prompt)
-    except EOFError:    # fpaste has already read sys.stdin and hit EOF
+    except EOFError:    # already read sys.stdin and hit EOF
         # rebind sys.stdin to user tty (unix-only)
         try:
             mytty = os.ttyname(sys.stdout.fileno())
-            #sys.stdin = open('/dev/tty')
             sys.stdin = open(mytty)
-            ans = raw_input()   # prompt already output above
+            ans = raw_input()
         except:
-            print >> sys.stderr, "error: raw_input: could not rebind sys.stdin to %s after sys.stdin EOF" % mytty
+            print >> sys.stderr, "could not rebind sys.stdin to %s after sys.stdin EOF" % mytty
             return False
 
     if ans.lower().startswith("y"):
@@ -76,10 +73,8 @@ def paste(text, options):
     params = urllib.urlencode({'title': options.desc, 'author': options.nick, 'lexer': options.lang, 'content': text, 'expire_options': options.expires})
     pasteSizeKiB = len(params)/1024.0
 
-    if pasteSizeKiB > 8*1024:   # 16MB is the current hard limit
-        print >> sys.stderr, "WARNING: your paste size (%.1fM) is ridiculously large and may be rejected by the server. A pastebin is NOT a file hosting service!" % (pasteSizeKiB/1024)
-    elif pasteSizeKiB > 1024:
-        print >> sys.stderr, "WARNING: your paste size (%.1fM) is over 1MB. A pastebin is NOT a file hosting service!" % (pasteSizeKiB/1024)
+    if pasteSizeKiB >= 512:   # 512KiB appears to be the current hard limit (20110404); old limit was 16MiB
+        print >> sys.stderr, "WARNING: your paste size (%.1fKiB) is very large and may be rejected by the server. A pastebin is NOT a file hosting service!" % (pasteSizeKiB)
     # verify that it's most likely *non-binary* data being sent.
     if not is_text(text):
         print >> sys.stderr, "WARNING: your paste looks a lot like binary data instead of text."
@@ -92,7 +87,7 @@ def paste(text, options):
             print >> sys.stderr, "Using proxy: %s" % options.proxy
         req.set_proxy(options.proxy, 'http')
 
-    print >> sys.stderr, "Uploading (%.1fK)..." % pasteSizeKiB
+    print >> sys.stderr, "Uploading (%.1fKiB)..." % pasteSizeKiB
 
     try:
         f = urllib2.urlopen(req)
@@ -108,10 +103,12 @@ def paste(text, options):
         return False
 
     url = f.geturl()
-    # minimally validate the returned url, as it is sometimes just "http://fpaste.org/" VS "http://fpaste.org/????/" without hitting an error above
-    #if re.match('http://fpaste.org/?[a-zA-Z0-9]+/?$', url):
     if re.match('http://fpaste.org/?.+', url):
         return url
+    elif urllib2.urlparse.urlsplit(url).path == '/static/limit/':
+        # instead of returning a 500 server error, fpaste.org now returns "http://fedoraunity.org/static/limit/" if paste too large
+        print >> sys.stderr, "Error: paste size (%.1fKiB) exceeded server limit.  %s" % (pasteSizeKiB, url)
+        return False
     else:
         print >> sys.stderr, "Invalid fpaste URL '%s' returned. This should not happen. Use --debug to see server output" % url
         if options.debug:
@@ -119,10 +116,8 @@ def paste(text, options):
         return False
 
 
-
 def sysinfo(show_stderr = False, show_successful_cmds = True, show_failed_cmds = True):
     '''returns commonly requested (and some fedora-specific) system info'''
-    # what all *should* be gathered (as non-root)? and what's too 'private'? ask for perm before sending?
     # 'ps' output below has been anonymized: -n for uid vs username, and -c for short processname
 
     # cmd name, command, command2 fallback, command3 fallback, ...
@@ -130,11 +125,10 @@ def sysinfo(show_stderr = False, show_successful_cmds = True, show_failed_cmds =
         ('OS Release',         '''lsb_release -ds''', '''cat /etc/*-release | uniq''', 'cat /etc/issue', 'cat /etc/motd'),
         ('Kernel',             '''uname -r ; cat /proc/cmdline'''),
         ('Desktop(s) Running', '''ps -eo comm= | egrep '(gnome-session|kdeinit|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session)' '''),
-        ('Desktop(s) Installed', '''ls -m /usr/share/xsessions'''),
-        ('SELinux',            '''sestatus''', '''/usr/sbin/sestatus''', '''getenforce''', '''grep -v '^#' /etc/sysconfig/selinux'''),
-        ('SELinux 2',          '''grep -c avc: /var/log/messages'''),
-        ('SELinux 3',          '''ausearch -m avc -ts today |wc -l'''),
-        ('CPU Model',     '''grep 'model name' /proc/cpuinfo | awk -F: '{print $2}' | uniq -c | sed -re 's/^ +//' ''', '''grep 'model name' /proc/cpuinfo'''),
+        ('Desktop(s) Installed', '''ls -m /usr/share/xsessions/ | sed 's/\.desktop//g' '''),
+        ('SELinux Status',      '''sestatus''', '''/usr/sbin/sestatus''', '''getenforce''', '''grep -v '^#' /etc/sysconfig/selinux'''),
+        ('SELinux Error Count', '''selinuxenabled && (grep avc: /var/log/messages; ausearch -m avc -ts today)2>/dev/null|egrep -o "comm=\"[^ ]+"|sort|uniq -c|sort -rn'''),
+        ('CPU Model',          '''grep 'model name' /proc/cpuinfo | awk -F: '{print $2}' | uniq -c | sed -re 's/^ +//' ''', '''grep 'model name' /proc/cpuinfo'''),
         ('64-bit Support',     '''grep -q ' lm ' /proc/cpuinfo && echo Yes || echo No'''),
         ('Hardware Virtualization Support', '''egrep -q '(vmx|svm)' /proc/cpuinfo && echo Yes || echo No'''),
         ('Load average',       '''uptime'''),
@@ -142,7 +136,7 @@ def sysinfo(show_stderr = False, show_successful_cmds = True, show_failed_cmds =
         #('Top',                '''top -n1 -b | head -15'''),
         ('Top 5 CPU hogs',     '''ps axuScnh | awk '$2!=''' + str(os.getpid()) + '''' | sort -rnk3 | head -5'''),
         ('Top 5 Memory hogs',  '''ps axuScnh | sort -rnk4 | head -5'''),
-        ('Disk space usage',   '''df -Th''', 'df -h', 'df'),
+        ('Disk space usage',   '''df -hT''', 'df -h', 'df'),
         ('Block devices',      '''blkid''', '''/sbin/blkid'''),
         ('PCI devices',        '''lspci''', '''/sbin/lspci'''),
         ('USB devices',        '''lsusb''', '''/sbin/lsusb'''),
@@ -154,7 +148,6 @@ def sysinfo(show_stderr = False, show_successful_cmds = True, show_failed_cmds =
         ('Last few reboots',   '''last -x -n10 reboot runlevel'''),
         ('YUM Repositories',   '''yum -C repolist''', '''ls -l /etc/yum.repos.d''', '''grep -v '^#' /etc/yum.conf'''),
         ('YUM Extras',         '''yum -C list extras'''),
-        #('/var/log/boot.log',  '''cat /var/log/boot.log'''),
         ('Last 20 packages installed', '''rpm -qa --nodigest --nosignature --last | head -20''')]
         #('Installed packages', '''rpm -qa --nodigest --nosignature | sort''', '''dpkg -l''') ]
     si = []

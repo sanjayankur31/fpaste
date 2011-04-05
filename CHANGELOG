@@ -1,11 +1,14 @@
 fpaste ChangeLog
 
-0.3.6 - 201XXXXX
- *) --sysinfo: modelname from cpuinfo added
+0.3.6 - 201104XX
+ *) Pastes which exceed the server's size limit now error more gracefully
  *) stdin and clipboard descriptions now default to showing a small text summary
     of the form "beginning ... middle ... end". sysinfo desc shows "fpaste --sysinfo"
+ *) --sysinfo: Added modelname from cpuinfo
+ *) --sysinfo: Added SELinux Error Counts
+ *) --sysinfo: Fixed Xorg error reporting for new log format
 
-0.3.5 - 201010XX
+0.3.5 - 20101018
 =====
  *) --sysinfo: detect running and installed Desktop Environment(s)
  *) --sysinfo: Show filesystem type in df -hT output
