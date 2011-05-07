@@ -1,6 +1,10 @@
 fpaste ChangeLog
 
-0.3.6 - 201104XX
+0.3.7 - 2011XXXX
+ *) Hide the now-misleading 'paste too large' 500 server error
+ *) Replace fpaste.org url literal with FPASTE_URL for fpaste-server
+
+0.3.6 - 20110405
  *) Pastes which exceed the server's size limit now error more gracefully
  *) stdin and clipboard descriptions now default to showing a small text summary
     of the form "beginning ... middle ... end". sysinfo desc shows "fpaste --sysinfo"

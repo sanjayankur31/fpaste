@@ -16,9 +16,10 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-VERSION = '0.3.6'
+VERSION = '0.3.7'
 USER_AGENT = 'fpaste/' + VERSION
 SET_DESCRIPTION_IF_EMPTY = 1  # stdin, clipboard, sysinfo
+FPASTE_URL = 'http://fpaste.org/'
 
 import os, sys, urllib, urllib2, subprocess
 from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
@@ -81,7 +82,7 @@ def paste(text, options):
         if not confirm("Send binary data anyway?"):
             return False
 
-    req = urllib2.Request(url='http://fpaste.org/', data=params, headers={'User-agent': USER_AGENT})
+    req = urllib2.Request(url=FPASTE_URL, data=params, headers={'User-agent': USER_AGENT})
     if options.proxy:
         if options.debug:
             print >> sys.stderr, "Using proxy: %s" % options.proxy
@@ -96,21 +97,21 @@ def paste(text, options):
             print >> sys.stderr, "Error Uploading: %s" % e.reason
         elif hasattr(e, 'code'):
             print >> sys.stderr, "Server Error: %d - %s" % (e.code, e.msg)
-            if e.code == 500:
-                print >> sys.stderr, "500 often means your paste was too large. You tried uploading %dKiB. A pastebin is NOT a file hosting service!" % (pasteSizeKiB)
+            #if e.code == 500:
+            #    print >> sys.stderr, "500 often means your paste was too large. You tried uploading %dKiB. A pastebin is NOT a file hosting service!" % (pasteSizeKiB)
             if options.debug:
                 print f.read()
         return False
 
     url = f.geturl()
-    if re.match('http://fpaste.org/?.+', url):
+    if re.match(FPASTE_URL + '?.+', url):
         return url
     elif urllib2.urlparse.urlsplit(url).path == '/static/limit/':
         # instead of returning a 500 server error, fpaste.org now returns "http://fedoraunity.org/static/limit/" if paste too large
         print >> sys.stderr, "Error: paste size (%.1fKiB) exceeded server limit.  %s" % (pasteSizeKiB, url)
         return False
     else:
-        print >> sys.stderr, "Invalid fpaste URL '%s' returned. This should not happen. Use --debug to see server output" % url
+        print >> sys.stderr, "Invalid URL '%s' returned. This should not happen. Use --debug to see server output" % url
         if options.debug:
             print f.read()
         return False
@@ -240,15 +241,15 @@ def main():
     ext2lang_map = { 'sh':'bash', 'bash':'bash', 'bat':'bat', 'c':'c', 'h':'c', 'cpp':'cpp', 'css':'css', 'html':'html', 'htm':'html', 'ini':'ini', 'java':'java', 'js':'js', 'jsp':'jsp', 'pl':'perl', 'php':'php', 'php3':'php', 'py':'python', 'rb':'rb', 'rhtml':'rhtml', 'sql':'sql', 'sqlite':'sqlite3', 'tcl':'tcl', 'vim':'vim', 'xml':'xml' }
 
     usage = """\
-Usage: %prog [OPTION]... [FILE]...
-  send text file(s), stdin, or clipboard to the http://fpaste.org pastebin and return the URL.
+Usage: %%prog [OPTION]... [FILE]...
+  send text file(s), stdin, or clipboard to the %s pastebin and return the URL.
 
 Examples:
-  %prog file1.txt file2.txt
-  dmesg | %prog
+  %%prog file1.txt file2.txt
+  dmesg | %%prog
   (prog1; prog2; prog3) | fpaste
-  %prog --sysinfo -d "my laptop" --confirm
-  %prog -n codemonkey -d "problem with foo" -l python foo.py"""
+  %%prog --sysinfo -d "my laptop" --confirm
+  %%prog -n codemonkey -d "problem with foo" -l python foo.py""" % FPASTE_URL
 
     parser = OptionParser(usage=usage, version='%prog '+VERSION)
     parser.add_option('', '--debug', dest='debug', help=SUPPRESS_HELP, action="store_true", default=False)
