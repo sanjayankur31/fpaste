@@ -92,13 +92,11 @@ def paste(text, options):
 
     try:
         f = urllib2.urlopen(req)
-    except IOError, e: 
+    except URLError, e: 
         if hasattr(e, 'reason'):
             print >> sys.stderr, "Error Uploading: %s" % e.reason
         elif hasattr(e, 'code'):
             print >> sys.stderr, "Server Error: %d - %s" % (e.code, e.msg)
-            #if e.code == 500:
-            #    print >> sys.stderr, "500 often means your paste was too large. You tried uploading %dKiB. A pastebin is NOT a file hosting service!" % (pasteSizeKiB)
             if options.debug:
                 print f.read()
         return False
