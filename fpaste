@@ -92,7 +92,7 @@ def paste(text, options):
 
     try:
         f = urllib2.urlopen(req)
-    except URLError, e: 
+    except urllib2.URLError, e: 
         if hasattr(e, 'reason'):
             print >> sys.stderr, "Error Uploading: %s" % e.reason
         elif hasattr(e, 'code'):
