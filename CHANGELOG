@@ -1,8 +1,9 @@
 fpaste ChangeLog
 
-0.3.7 - 2011XXXX
- *) Hide the now-misleading 'paste too large' 500 server error
+0.3.7 - 20110823
  *) Replace fpaste.org url literal with FPASTE_URL for fpaste-server
+ *) Hide the now-misleading 'paste too large' 500 server error
+ *) Fix URLError
 
 0.3.6 - 20110405
  *) Pastes which exceed the server's size limit now error more gracefully
