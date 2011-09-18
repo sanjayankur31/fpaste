@@ -73,10 +73,12 @@ def paste(text, options):
 
     # if sent data exceeds maxlength, server dies without error returned, so, we'll truncate the input here,
     # until the server decides to truncate instead of die
-    if len(options.desc) > 120:  # limits from maxlength attr of fpaste.org form
-        title = options.desc[0:120-3] + "..."
-    if len(options.nick) > 30:
-    author = options.nick[0:30-3] + "..."
+    title = options.desc
+    author = options.nick
+    if len(title) > 120:  # limits from maxlength attr of fpaste.org form
+        title = title[0:120-3] + "..."
+    if len(author) > 30:
+        author = author[0:30-3] + "..."
 
     params = urllib.urlencode({'title': title, 'author': author, 'lexer': options.lang, 'content': text, 'expire_options': options.expires})
     pasteSizeKiB = len(params)/1024.0
