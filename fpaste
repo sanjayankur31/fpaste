@@ -71,7 +71,12 @@ def paste(text, options):
         print >> sys.stderr, "No text to send."
         return False
 
-    params = urllib.urlencode({'title': options.desc, 'author': options.nick, 'lexer': options.lang, 'content': text, 'expire_options': options.expires})
+    # if sent data exceeds maxlength, server dies without error returned, so, we'll truncate the input here,
+    # until the server decides to truncate instead of die
+    title = options.desc[0:120-3] + "..."  # maxlength=120
+    author = options.nick[0:30-3] + "..." # maxlength=30
+
+    params = urllib.urlencode({'title': title, 'author': author, 'lexer': options.lang, 'content': text, 'expire_options': options.expires})
     pasteSizeKiB = len(params)/1024.0
 
     if pasteSizeKiB >= 512:   # 512KiB appears to be the current hard limit (20110404); old limit was 16MiB
