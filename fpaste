@@ -271,7 +271,7 @@ Examples:
     parser.add_option_group(fpasteOrg_group)
     # other options
     fpasteProg_group = OptionGroup(parser, "Input/Output Options")
-    fpasteProg_group.add_option('-i', '--clipin', dest='clipin', help='read paste text from current X clipboard selection', action="store_true", default=False)
+    fpasteProg_group.add_option('-i', '--clipin', dest='clipin', help='read paste text from current X clipboard selection [requires: xsel]', action="store_true", default=False)
     fpasteProg_group.add_option('-o', '--clipout', dest='clipout', help='save returned paste URL to X clipboard', action="store_true", default=False)
     fpasteProg_group.add_option('', '--selection', dest='selection', help='specify which X clipboard to use. valid options: "primary" (default; middle-mouse-button paste), "secondary" (uncommon), or "clipboard" (ctrl-v paste)', metavar='CLIP')
     fpasteProg_group.add_option('', '--fullpath', dest='fullpath', help='use pathname VS basename for file description(s)', action="store_true", default=False)
