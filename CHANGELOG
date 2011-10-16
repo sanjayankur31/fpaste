@@ -1,5 +1,8 @@
 fpaste ChangeLog
 
+0.3.7.1 - 20111016
+ *) added 'requires:xsel' to the --help output for -i, since xsel package dep dropped
+
 0.3.7 - 20110823
  *) Replace fpaste.org url literal with FPASTE_URL for fpaste-server
  *) Hide the now-misleading 'paste too large' 500 server error
