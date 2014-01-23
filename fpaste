@@ -134,6 +134,23 @@ def paste(text, options):
 
 #    response = f.read()
     response = json.loads(f.read())
+
+    if 'error' in response['result']:
+        error = response['result']['error']
+        if error == 'err_spamguard_php':
+            print >> sys.stderr, "Error: Poster's IP address is listed as malicious"
+        elif error == 'err_spamguard_noflood':
+            print >> sys.stderr, "Error: Poster is trying to flood"
+        elif error == 'err_spamguard_stealth':
+            print >> sys.stderr, "Error: The paste triggered the spam filter"
+        elif error == 'err_spamguard_ipban':
+            print >> sys.stderr, "Error: Poster's IP address is banned"
+        elif error == 'err_author_numeric':
+            print >> sys.stderr, "Error: Poster's alias should be alphanumeric"
+        else: 
+            print >> sys.stderr, "Error: %s" % error
+        sys.exit(-1)
+
     id = [i[1]["id"] for i in response.iteritems()].pop()
 #        for k,j in i.iteritems():
 #            print j, k
