@@ -19,9 +19,10 @@
 VERSION = '0.3.7.1'
 USER_AGENT = 'fpaste/' + VERSION
 SET_DESCRIPTION_IF_EMPTY = 1  # stdin, clipboard, sysinfo
-FPASTE_URL = 'http://fpaste.org/'
+#FPASTE_URL = 'http://fpaste.org/'
+FPASTE_URL = 'http://paste.fedoraproject.org/'
 
-import os, sys, urllib, urllib2, subprocess
+import os, sys, urllib, urllib2, subprocess, json
 from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
 
 def is_text(text, maxCheck = 100, pctPrintable = 0.75):
@@ -63,24 +64,45 @@ def confirm(prompt = "OK?"):
     else:
         return False
 
+def get_shortened_url(long_url, password):
+    """Get shortened URL from paste data"""
+
+    # NOTE: this uses password, not paste_password
+    if password:
+        params = urllib.urlencode({'mode':'json', 'password': password})
+    else:
+        params = 'mode=json'
+
+    req = urllib2.Request(url=long_url+'/', data=params)
+    try:
+        f = urllib2.urlopen(req)
+    except urllib2.URLError: 
+        return False
+
+    for line in f.readlines():
+        if 'short_url' in line:
+            return json.loads('{' + line  +'}')['short_url']
+
 
 def paste(text, options):
     '''send text to fpaste.org and return the URL'''
     import re
     if not text:
         print >> sys.stderr, "No text to send."
-        return False
+        return [False,False]
 
     # if sent data exceeds maxlength, server dies without error returned, so, we'll truncate the input here,
     # until the server decides to truncate instead of die
-    title = options.desc
     author = options.nick
-    if len(title) > 120:  # limits from maxlength attr of fpaste.org form
-        title = title[0:120-3] + "..."
-    if len(author) > 30:
-        author = author[0:30-3] + "..."
+    if len(author) > 50:
+        author = author[0:50-3] + "..."
 
-    params = urllib.urlencode({'title': title, 'author': author, 'lexer': options.lang, 'content': text, 'expire_options': options.expires})
+    params = urllib.urlencode({'paste_lang': options.lang, 'paste_data': text,
+                               'paste_private': options.make_private,
+                               'paste_expire': options.expires,
+                               'paste_password': options.password,
+                               'paste_user': author,
+                               'api_submit': 'true', 'mode': 'json'})
     pasteSizeKiB = len(params)/1024.0
 
     if pasteSizeKiB >= 512:   # 512KiB appears to be the current hard limit (20110404); old limit was 16MiB
@@ -89,9 +111,9 @@ def paste(text, options):
     if not is_text(text):
         print >> sys.stderr, "WARNING: your paste looks a lot like binary data instead of text."
         if not confirm("Send binary data anyway?"):
-            return False
+            return [False,False]
 
-    req = urllib2.Request(url=FPASTE_URL, data=params, headers={'User-agent': USER_AGENT})
+    req = urllib2.Request(url=options.url, data=params, headers={'User-agent': USER_AGENT})
     if options.proxy:
         if options.debug:
             print >> sys.stderr, "Using proxy: %s" % options.proxy
@@ -108,20 +130,37 @@ def paste(text, options):
             print >> sys.stderr, "Server Error: %d - %s" % (e.code, e.msg)
             if options.debug:
                 print f.read()
-        return False
+        return [False, False]
 
-    url = f.geturl()
-    if re.match(FPASTE_URL + '?.+', url):
-        return url
-    elif urllib2.urlparse.urlsplit(url).path == '/static/limit/':
-        # instead of returning a 500 server error, fpaste.org now returns "http://fedoraunity.org/static/limit/" if paste too large
-        print >> sys.stderr, "Error: paste size (%.1fKiB) exceeded server limit.  %s" % (pasteSizeKiB, url)
-        return False
+#    response = f.read()
+    response = json.loads(f.read())
+    id = [i[1]["id"] for i in response.iteritems()].pop()
+#        for k,j in i.iteritems():
+#            print j, k
+    if options.make_private == 'yes':
+        private_hash = [i[1]["hash"] for i in response.iteritems()].pop()
+        url = "{0}{1}/{2}".format(options.url, id, private_hash)
     else:
-        print >> sys.stderr, "Invalid URL '%s' returned. This should not happen. Use --debug to see server output" % url
-        if options.debug:
-            print f.read()
-        return False
+        url = "{0}{1}".format(options.url, id)
+
+    short_url = get_shortened_url(url, options.password)
+    if short_url:
+        return [url, short_url]
+    else:
+        return [url, False]
+
+#    url = f.geturl()
+#    if re.match(FPASTE_URL + '?.+', url):
+#        return url
+#    elif urllib2.urlparse.urlsplit(url).path == '/static/limit/':
+#        # instead of returning a 500 server error, fpaste.org now returns "http://fedoraunity.org/static/limit/" if paste too large
+#        print >> sys.stderr, "Error: paste size (%.1fKiB) exceeded server limit.  %s" % (pasteSizeKiB, url)
+#        return False
+#    else:
+#        print >> sys.stderr, "Invalid URL '%s' returned. This should not happen. Use --debug to see server output" % url
+#        if options.debug:
+#            print f.read()
+#        return False
 
 
 def sysinfo(show_stderr = False, show_successful_cmds = True, show_failed_cmds = True):
@@ -132,7 +171,7 @@ def sysinfo(show_stderr = False, show_successful_cmds = True, show_failed_cmds =
     cmdlist = [
         ('OS Release',         '''lsb_release -ds''', '''cat /etc/*-release | uniq''', 'cat /etc/issue', 'cat /etc/motd'),
         ('Kernel',             '''uname -r ; cat /proc/cmdline'''),
-        ('Desktop(s) Running', '''ps -eo comm= | egrep '(gnome-session|kdeinit|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session)' '''),
+        ('Desktop(s) Running', '''ps -eo comm= | egrep '(gnome-session|startkde|startactive|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session)' '''),
         ('Desktop(s) Installed', '''ls -m /usr/share/xsessions/ | sed 's/\.desktop//g' '''),
         ('SELinux Status',      '''sestatus''', '''/usr/sbin/sestatus''', '''getenforce''', '''grep -v '^#' /etc/sysconfig/selinux'''),
         ('SELinux Error Count', '''selinuxenabled && (grep avc: /var/log/messages; ausearch -m avc -ts today)2>/dev/null|egrep -o "comm=\\"[^ ]+"|sort|uniq -c|sort -rn'''),
@@ -185,19 +224,6 @@ def sysinfo(show_stderr = False, show_successful_cmds = True, show_failed_cmds =
             else:
                 si.append( ('%s' % cmdname, out) )
 
-    # public SMOLT url
-    try:
-        sys.path.append('/usr/share/smolt/client')
-        from smolt import get_profile_link, getPubUUID
-        from smolt_config import get_config_attr
-        smoonurl = get_config_attr("SMOON_URL", "http://smolts.org/")
-        pubuuid = getPubUUID()
-        puburl = get_profile_link(smoonurl, pubuuid)+os.linesep
-    except:
-        puburl = None
-    si.insert(2, ('Smolt Profile URL', puburl) )
-
-    sys.stderr.write("\n")
 
     # return in readable indented format
     sistr = "=== fpaste %s System Information (fpaste --sysinfo) ===\n" % VERSION
@@ -242,10 +268,211 @@ def summarize_text(text):
 
 
 def main():
-    validExpiresOpts = [ '3600', '10800', '43200', '86400' ]
-    validSyntaxOpts = [ 'abap', 'antlr', 'antlr-as', 'antlr-cpp', 'antlr-csharp', 'antlr-java', 'antlr-objc', 'antlr-perl', 'antlr-python', 'antlr-ruby', 'apacheconf', 'applescript', 'as', 'as3', 'aspx-cs', 'aspx-vb', 'basemake', 'bash', 'bat', 'bbcode', 'befunge', 'boo', 'brainfuck', 'c', 'c-objdump', 'cheetah', 'clojure', 'common-lisp', 'console', 'control', 'cpp', 'cpp-objdump', 'csharp', 'css', 'css+django', 'css+erb', 'css+genshitext', 'css+mako', 'css+myghty', 'css+php', 'css+smarty', 'cython', 'd', 'd-objdump', 'delphi', 'diff', 'django', 'dpatch', 'dylan', 'erb', 'erl', 'erlang', 'evoque', 'fortran', 'gas', 'genshi', 'genshitext', 'glsl', 'gnuplot', 'groff', 'haskell', 'html', 'html+cheetah', 'html+django', 'html+evoque', 'html+genshi', 'html+mako', 'html+myghty', 'html+php', 'html+smarty', 'ini', 'io', 'irc', 'java', 'js', 'js+cheetah', 'js+django', 'js+erb', 'js+genshitext', 'js+mako', 'js+myghty', 'js+php', 'js+smarty', 'jsp', 'lhs', 'lighty', 'llvm', 'logtalk', 'lua', 'make', 'mako', 'matlab', 'matlabsession', 'minid', 'modelica', 'moocode', 'mupad', 'mxml', 'myghty', 'mysql', 'nasm', 'newspeak', 'nginx', 'numpy', 'objdump', 'objective-c', 'ocaml', 'perl', 'php', 'pot', 'pov', 'prolog', 'py3tb', 'pycon', 'pytb', 'python', 'python3', 'ragel', 'ragel-c', 'ragel-cpp', 'ragel-d', 'ragel-em', 'ragel-java', 'ragel-objc', 'ragel-ruby', 'raw', 'rb', 'rbcon', 'rebol', 'redcode', 'rhtml', 'rst', 'scala', 'scheme', 'smalltalk', 'smarty', 'sourceslist', 'splus', 'sql', 'sqlite3', 'squidconf', 'tcl', 'tcsh', 'tex', 'text', 'trac-wiki', 'vala', 'vb.net', 'vim', 'xml', 'xml+cheetah', 'xml+django', 'xml+erb', 'xml+evoque', 'xml+mako', 'xml+myghty', 'xml+php', 'xml+smarty', 'xslt', 'yaml' ]
+    validExpiresOpts = [ '1800', '21600', '86400', '604800', '2592000']
+    validSyntaxOpts = [ "cpp",
+                        "diff",
+                        "gdb",
+                        "javascript",
+                        "text",
+                        "perl",
+                        "php",
+                        "python",
+                        "ruby",
+                        "xml",
+                        "abap",
+                        "6502acme",
+                        "actionscript",
+                        "actionscript3",
+                        "ada",
+                        "algol68",
+                        "apache",
+                        "applescript",
+                        "apt_sources",
+                        "asm",
+                        "asp",
+                        "autoconf",
+                        "autohotkey",
+                        "autoit",
+                        "avisynth",
+                        "awk",
+                        "bash",
+                        "basic4gl",
+                        "bf",
+                        "bibtex",
+                        "blitzbasic",
+                        "bnf",
+                        "boo",
+                        "c",
+                        "c_loadrunner",
+                        "c_mac",
+                        "caddcl",
+                        "cadlisp",
+                        "cfdg",
+                        "cfm",
+                        "chaiscript",
+                        "cil",
+                        "clojure",
+                        "cmake",
+                        "cobol",
+                        "cpp",
+                        "cpp-qt",
+                        "csharp",
+                        "css",
+                        "cuesheet",
+                        "d",
+                        "dcs",
+                        "delphi",
+                        "diff",
+                        "div",
+                        "dos",
+                        "dot",
+                        "e",
+                        "ecmascript",
+                        "eiffel",
+                        "email",
+                        "epc",
+                        "erlang",
+                        "f1",
+                        "falcon",
+                        "fo",
+                        "fortran",
+                        "freebasic",
+                        "fsharp",
+                        "4cs",
+                        "gambas",
+                        "gdb",
+                        "genero",
+                        "genie",
+                        "gettext",
+                        "glsl",
+                        "gml",
+                        "gnuplot",
+                        "go",
+                        "groovy",
+                        "gwbasic",
+                        "haskell",
+                        "hicest",
+                        "68000devpac",
+                        "hq9plus",
+                        "html4strict",
+                        "icon",
+                        "idl",
+                        "ini",
+                        "inno",
+                        "intercal",
+                        "io",
+                        "j",
+                        "java",
+                        "java5",
+                        "javascript",
+                        "jquery",
+                        "6502kickass",
+                        "kixtart",
+                        "klonec",
+                        "klonecpp",
+                        "latex",
+                        "lb",
+                        "lisp",
+                        "locobasic",
+                        "logtalk",
+                        "lolcode",
+                        "lotusformulas",
+                        "lotusscript",
+                        "lscript",
+                        "lsl2",
+                        "lua",
+                        "m68k",
+                        "magiksf",
+                        "make",
+                        "mapbasic",
+                        "matlab",
+                        "mirc",
+                        "mmix",
+                        "modula2",
+                        "modula3",
+                        "mpasm",
+                        "mxml",
+                        "mysql",
+                        "newlisp",
+                        "nsis",
+                        "oberon2",
+                        "objc",
+                        "objeck",
+                        "ocaml",
+                        "ocaml-brief" ,
+                        "oobas",
+                        "oracle11",
+                        "oracle8",
+                        "oxygene",
+                        "oz",
+                        "pascal",
+                        "pcre",
+                        "per",
+                        "perl",
+                        "perl6",
+                        "pf",
+                        "php",
+                        "php-brief",
+                        "pic16",
+                        "pike",
+                        "pixelbender",
+                        "plsql",
+                        "postgresql",
+                        "povray",
+                        "powerbuilder",
+                        "powershell",
+                        "progress",
+                        "prolog",
+                        "properties",
+                        "providex",
+                        "purebasic",
+                        "python",
+                        "q",
+                        "qbasic",
+                        "rails",
+                        "rebol",
+                        "reg",
+                        "robots",
+                        "rpmspec",
+                        "rsplus",
+                        "ruby",
+                        "sas",
+                        "scala",
+                        "scheme",
+                        "scilab",
+                        "sdlbasic",
+                        "smalltalk",
+                        "smarty",
+                        "sql",
+                        "systemverilog",
+                        "6502tasm",
+                        "tcl",
+                        "teraterm",
+                        "text",
+                        "thinbasic",
+                        "tsql",
+                        "typoscript",
+                        "unicon",
+                        "vala",
+                        "vb",
+                        "vbnet",
+                        "verilog",
+                        "vhdl",
+                        "vim",
+                        "visualfoxpro",
+                        "visualprolog",
+                        "whitespace",
+                        "whois",
+                        "winbatch",
+                        "xbasic",
+                        "xml",
+                        "xorg_conf",
+                        "xpp",
+                        "z80",
+                        "zxbasic" ]
     validClipboardSelectionOpts = [ 'primary', 'secondary', 'clipboard' ]
-    ext2lang_map = { 'sh':'bash', 'bash':'bash', 'bat':'bat', 'c':'c', 'h':'c', 'cpp':'cpp', 'css':'css', 'html':'html', 'htm':'html', 'ini':'ini', 'java':'java', 'js':'js', 'jsp':'jsp', 'pl':'perl', 'php':'php', 'php3':'php', 'py':'python', 'rb':'rb', 'rhtml':'rhtml', 'sql':'sql', 'sqlite':'sqlite3', 'tcl':'tcl', 'vim':'vim', 'xml':'xml' }
+    validPrivateOpts = [ 'yes', 'no']
+    ext2lang_map = { 'sh':'bash', 'bash':'bash', 'bat':'bat', 'c':'c', 'h':'c', 'cpp':'cpp', 'css':'css', 'html':'html4strict', 'htm':'html4strict', 'ini':'ini', 'java':'java', 'js':'javascript', 'jsp':'java', 'pl':'perl', 'php':'php', 'php3':'php', 'py':'python', 'rb':'ruby', 'rhtml':'html4strict', 'sql':'sql', 'sqlite':'sql', 'tcl':'tcl', 'vim':'vim', 'xml':'xml' }
 
     usage = """\
 Usage: %%prog [OPTION]... [FILE]...
@@ -264,10 +491,13 @@ Examples:
 
     # pastebin-specific options first
     fpasteOrg_group = OptionGroup(parser, "fpaste.org Options")
-    fpasteOrg_group.add_option('-n', dest='nick', help='your nickname; default is "%default"', metavar='"NICKNAME"')
-    fpasteOrg_group.add_option('-d', dest='desc', help='description of paste; default appends filename(s)', metavar='"DESCRIPTION"')
+    fpasteOrg_group.add_option('-n', dest='nick', help='your nickname; default is "%default";', metavar='"NICKNAME"')
     fpasteOrg_group.add_option('-l', dest='lang', help='language of content for syntax highlighting; default is "%default"; use "list" to show all ' + str(len(validSyntaxOpts)) + ' supported langs', metavar='"LANGUAGE"')
     fpasteOrg_group.add_option('-x', dest='expires', help='time before paste is removed; default is %default seconds; valid options: ' + ', '.join(validExpiresOpts), metavar='EXPIRES')
+    fpasteOrg_group.add_option('-P', '--private', help='make paste private; default is %default; valid options: ' + ', '.join(validPrivateOpts), dest='make_private', metavar='"PRIVATE"')
+    fpasteOrg_group.add_option('-U', '--URL', help='URL of fpaste server; default is %default', dest='url', metavar='"FPASTE URL"')
+    fpasteOrg_group.add_option('-d', '--password', help='password for paste; default is %default', dest='password', metavar='"PASSWORD"')
+
     parser.add_option_group(fpasteOrg_group)
     # other options
     fpasteProg_group = OptionGroup(parser, "Input/Output Options")
@@ -281,8 +511,20 @@ Examples:
     fpasteProg_group.add_option('', '--confirm', dest='confirm', help='print paste, and prompt for confirmation before sending', action="store_true", default=False)
     parser.add_option_group(fpasteProg_group)
 
-    parser.set_defaults(desc='', nick='', lang='text', expires=max(validExpiresOpts), selection='primary')
+# Let default be anonymous.
+#    p = subprocess.Popen('whoami', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+#    (out, err) = p.communicate ()
+#    if p.returncode == 0 and out:
+#        user = out[0:-1]
+#    else:
+#        print >> sys.stderr, "WARNING Could not run whoami. Posting anonymously."
+
+    parser.set_defaults(nick='', lang='text', make_private='yes', expires='2592000', selection='primary', password='', url=FPASTE_URL )
     (options, args) = parser.parse_args()
+
+    # Check for trailing slash
+    if options.url[-1] != '/':
+        options.url = options.url + '/'
 
     if options.lang.lower() == 'list':
         print 'Valid language syntax options:'
@@ -331,31 +573,19 @@ Examples:
             parser.error("'xsel' failure. this usually means you're not running X")
         if not text:
             parser.error("%s clipboard is empty" % options.selection)
-        if SET_DESCRIPTION_IF_EMPTY and not options.desc:
-            #options.desc = '%s clipboard' % options.selection
-            options.desc = summarize_text(text)
     elif options.pasteself:
         text = open(sys.argv[0]).read()
-        options.desc = 'fpaste-' + VERSION
         options.lang = 'python'
         options.nick = 'Fedora Unity'
     elif options.sysinfo:
         text = sysinfo(options.debug)
-        if SET_DESCRIPTION_IF_EMPTY and not options.desc:
-            options.desc = 'fpaste --sysinfo'
     elif not args:   # read from stdin if no file args supplied
         try:
             text += sys.stdin.read()
         except KeyboardInterrupt:
             print >> sys.stderr, "\nUSAGE REMINDER:\n   fpaste waits for input when run without file arguments.\n   Paste your text, then press <Ctrl-D> on a new line to upload.\n   Try `fpaste --help' for more information.\nExiting..."
             sys.exit(1)
-        if SET_DESCRIPTION_IF_EMPTY and not options.desc:
-            options.desc = summarize_text(text)
     else:
-        if not options.desc:
-            options.desc = '%s' % (' + '.join(fileargs))
-        else:
-            options.desc = '%s: %s' % (options.desc, ' + '.join(fileargs))
         for i, f in enumerate(args):
             if not os.access(f, os.R_OK):
                 parser.error("file '%s' is not readable" % f)
@@ -364,10 +594,8 @@ Examples:
                 text += '### file %d of %d: %s\n' % (i+1, len(args), fileargs[i])
                 text += '#' * 78 + '\n'
             text += open(f).read()
-
     if options.debug:
         print 'nick: "%s"' % options.nick
-        print 'desc: "%s"' % options.desc
         print 'lang: "%s"' % options.lang
         print 'text (%d): "%s ..."' % (len(text), text[:80])
 
@@ -385,7 +613,7 @@ Examples:
         if not confirm("OK to send?"):
             sys.exit(1)
 
-    url = paste(text, options)
+    [url, short_url] = paste(text, options)
     if url:
         # try to save URL in clipboard, and warn but don't error
         if options.clipout:
@@ -399,7 +627,12 @@ Examples:
                 #parser.error("'xsel' failure. this usually means you're not running X")
                 print >> sys.stderr, "WARNING: URL not saved to clipboard"
 
-        print url
+        if not short_url:
+            print >> sys.stderr, "WARNING: Could not shorten URL"
+            print url
+        else:
+            print short_url +  " -> " +  url
+
     else:
         sys.exit(1)
 
