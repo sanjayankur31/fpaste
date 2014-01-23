@@ -17,14 +17,20 @@ show help message and exit
 \fB\-n "NICKNAME"\fR
 your nickname; default is ""
 .TP 
-\fB\-d "DESCRIPTION"\fR
-description of paste; default appends filename(s)
+\fB\-d "PASSWORD"\fR
+password for paste; default is ""
 .TP 
 \fB\-l "LANGUAGE"\fR
-language of content for syntax highlighting; default is "text"; use "list" to show all 160 supported langs
+language of content for syntax highlighting; default is "text"; use "list" to show all 200+ supported langs
 .TP 
 \fB\-x "EXPIRES"\fR
-time before paste is removed; default is 86400 seconds; valid options: 3600, 10800, 43200, 86400
+time before paste is removed; default is 2592000 seconds; valid options: 1800, 21600, 86400, 604800, 2592000
+.TP 
+\fB\-U, \-\-URL "URL"\fR
+URL of fpaste server; default is http://fpaste.org
+.TP 
+\fB\-P, \-\-private\fR
+make paste private; default is yes; valid options: yes, no
 
 .br 
 .TP 
