@@ -17,7 +17,7 @@ show help message and exit
 \fB\-n "NICKNAME"\fR
 your nickname; default is ""
 .TP 
-\fB\-d "PASSWORD"\fR
+\fB\-d "PASSWORD", \-\-password="PASSWORD"\fR
 password for paste; default is ""
 .TP 
 \fB\-l "LANGUAGE"\fR
@@ -65,11 +65,11 @@ Paste file foo.txt at fpaste.org
 .TP 
 Paste output of ifconfig to fpaste.org with description "my network config"
 .IP 
-\fBifconfig | fpaste \-d "my network config"\fR
+\fBifconfig | fpaste \fR
 .TP 
 Paste mycode.py to fpaste.org with description as "problem with foo", nickname "codemonkey", and language "python"
 .IP 
-\fBfpaste \-n codemonkey \-d "problem with foo" \-l python mycode.py\fR
+\fBfpaste \-n codemonkey \-l python mycode.py\fR
 .TP 
 Paste mouse\-selected text from the primary X selection clipboard, and then overwrite the same clipboard with the returned fpaste URL
 .IP 
@@ -84,9 +84,9 @@ To paste the output of more than one program and/or file at a time, use the foll
 \fBfpaste <(lsusb) <(lspci)\fR
 .br 
 
-\fBfpaste <(fdisk \-l) /etc/grub.conf \-d "grub problem"\fR
+\fBfpaste <(fdisk \-l) /etc/grub.conf \fR
 .br 
-\fB(fdisk \-l ; cat /etc/grub.conf) | fpaste \-d "grub problem"\fR
+\fB(fdisk \-l ; cat /etc/grub.conf) | fpaste \fR
 .br 
 
 \fB(uname \-a ; yum repolist) | fpaste\fR
