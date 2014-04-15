@@ -65,7 +65,7 @@ def confirm(prompt = "OK?"):
         return False
 
 def get_shortened_url(long_url, password):
-    """Get shortened URL from paste data"""
+    '''Get shortened URL from paste data'''
 
     # NOTE: this uses password, not paste_password
     if password:
@@ -79,10 +79,14 @@ def get_shortened_url(long_url, password):
     except urllib2.URLError: 
         return False
 
-    for line in f.readlines():
-        if 'short_url' in line:
-            return json.loads('{' + line  +'}')['short_url']
-
+    # We know that short_url is always the third last line in the json output
+    # Iterating over each line is a bad idea. It'll break everytime it
+    # encounters a "short_url" string.
+    try:
+        result = json.loads('{' + f.readlines()[-3]  +'}')['short_url']
+    except ValueError, e:
+        return False
+    return result
 
 def paste(text, options):
     '''send text to fpaste.org and return the URL'''
@@ -132,8 +136,11 @@ def paste(text, options):
                 print f.read()
         return [False, False]
 
-#    response = f.read()
-    response = json.loads(f.read())
+    try:
+        response = json.loads(f.read())
+    except ValueError, e:
+        print >> sys.stderr, "Error: Server did not return a correct JSON response"
+        return [False, False]
 
     if 'error' in response['result']:
         error = response['result']['error']
