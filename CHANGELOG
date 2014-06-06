@@ -1,5 +1,15 @@
 fpaste ChangeLog
 
+0.3.7.2.1 - 20140606
+
+ *) version bump for consistency
+
+0.3.7.2 - 20140415
+
+ *) various fixes to work with the sticky notes server
+ *) handles server errors more gracefully
+ *) updated man page to modify the usage of -d
+
 0.3.7.1 - 20111016
  *) added 'requires:xsel' to the --help output for -i, since xsel package dep dropped
 
