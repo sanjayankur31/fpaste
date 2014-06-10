@@ -1,5 +1,9 @@
 fpaste ChangeLog
 
+0.3.7.3 - 20140610
+
+ *) Improve how fpaste fails when xsel is absent for --clipout - rhbz #1107333
+
 0.3.7.2.1 - 20140606
 
  *) version bump for consistency

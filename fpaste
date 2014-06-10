@@ -16,7 +16,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-VERSION = '0.3.7.2.1'
+VERSION = '0.3.7.3'
 USER_AGENT = 'fpaste/' + VERSION
 SET_DESCRIPTION_IF_EMPTY = 1  # stdin, clipboard, sysinfo
 #FPASTE_URL = 'http://fpaste.org/'
@@ -641,15 +641,19 @@ Examples:
     if url:
         # try to save URL in clipboard, and warn but don't error
         if options.clipout:
-            xselcmd = 'xsel -i --%s' % options.selection
+            if not os.access('/usr/bin/xsel', os.X_OK):
+                print >> sys.stderr, 'OOPS - the clipboard options currently depend on "/usr/bin/xsel", which does not appear to be installed'
+            else:
+                xselcmd = 'xsel -i --%s' % options.selection
             #os.popen(xselcmd, 'wb').write(url)
-            p = subprocess.Popen(xselcmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-            (out, err) = p.communicate(input=url)
-            if p.returncode != 0:
-                if options.debug:
-                    print >> sys.stderr, err
-                #parser.error("'xsel' failure. this usually means you're not running X")
-                print >> sys.stderr, "WARNING: URL not saved to clipboard"
+                p = subprocess.Popen(xselcmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+                (out, err) = p.communicate(input=url)
+                if p.returncode != 0:
+                    if options.debug:
+                        print >> sys.stderr, err
+                    print >> sys.stderr, "WARNING: URL not saved to clipboard"
+                else:
+                    print "URL copied to primary clipboard"
 
         if not short_url:
             print >> sys.stderr, "WARNING: Could not shorten URL"
