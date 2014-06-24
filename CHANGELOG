@@ -1,5 +1,10 @@
 fpaste ChangeLog
 
+0.3.7.3.1 - 20140624
+
+ *) Add mate session to --sysinfo
+ *) Update avc command to use journalctl
+
 0.3.7.3 - 20140610
 
  *) Improve how fpaste fails when xsel is absent for --clipout - rhbz #1107333

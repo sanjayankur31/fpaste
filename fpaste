@@ -16,7 +16,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-VERSION = '0.3.7.3'
+VERSION = '0.3.7.3.1'
 USER_AGENT = 'fpaste/' + VERSION
 SET_DESCRIPTION_IF_EMPTY = 1  # stdin, clipboard, sysinfo
 #FPASTE_URL = 'http://fpaste.org/'
@@ -195,10 +195,10 @@ def sysinfo(show_stderr = False, show_successful_cmds = True, show_failed_cmds =
     cmdlist = [
         ('OS Release',         '''lsb_release -ds''', '''cat /etc/*-release | uniq''', 'cat /etc/issue', 'cat /etc/motd'),
         ('Kernel',             '''uname -r ; cat /proc/cmdline'''),
-        ('Desktop(s) Running', '''ps -eo comm= | egrep '(gnome-session|startkde|startactive|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session)' '''),
+        ('Desktop(s) Running', '''ps -eo comm= | egrep '(gnome-session|startkde|startactive|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session|mate-session)' '''),
         ('Desktop(s) Installed', '''ls -m /usr/share/xsessions/ | sed 's/\.desktop//g' '''),
         ('SELinux Status',      '''sestatus''', '''/usr/sbin/sestatus''', '''getenforce''', '''grep -v '^#' /etc/sysconfig/selinux'''),
-        ('SELinux Error Count', '''selinuxenabled && (grep avc: /var/log/messages; ausearch -m avc -ts today)2>/dev/null|egrep -o "comm=\\"[^ ]+"|sort|uniq -c|sort -rn'''),
+        ('SELinux Error Count', '''selinuxenabled && journalctl --since yesterday |grep avc: |egrep -o "comm=\"[^ ]+" |sort |uniq -c |sort -rn'''),
         ('CPU Model',          '''grep 'model name' /proc/cpuinfo | awk -F: '{print $2}' | uniq -c | sed -re 's/^ +//' ''', '''grep 'model name' /proc/cpuinfo'''),
         ('64-bit Support',     '''grep -q ' lm ' /proc/cpuinfo && echo Yes || echo No'''),
         ('Hardware Virtualization Support', '''egrep -q '(vmx|svm)' /proc/cpuinfo && echo Yes || echo No'''),
