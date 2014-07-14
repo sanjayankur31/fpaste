@@ -1,5 +1,12 @@
 fpaste ChangeLog
 
+0.3.7.3.3 - 20140714
+0.3.7.3.2 - 20140714
+
+ *) bump to update version in other files
+ *) egrep -> grep -E
+ *) rhbz #1118711
+
 0.3.7.3.1 - 20140624
 
  *) Add mate session to --sysinfo
