@@ -8,12 +8,12 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 VERSION = '0.3.7.3.3'
@@ -76,7 +76,7 @@ def get_shortened_url(long_url, password):
     req = urllib2.Request(url=long_url+'/', data=params)
     try:
         f = urllib2.urlopen(req)
-    except urllib2.URLError: 
+    except urllib2.URLError:
         return False
 
     # We know that short_url is always the third last line in the json output
@@ -127,7 +127,7 @@ def paste(text, options):
 
     try:
         f = urllib2.urlopen(req)
-    except urllib2.URLError, e: 
+    except urllib2.URLError, e:
         if hasattr(e, 'reason'):
             print >> sys.stderr, "Error Uploading: %s" % e.reason
         elif hasattr(e, 'code'):
@@ -154,7 +154,7 @@ def paste(text, options):
             print >> sys.stderr, "Error: Poster's IP address is banned"
         elif error == 'err_author_numeric':
             print >> sys.stderr, "Error: Poster's alias should be alphanumeric"
-        else: 
+        else:
             print >> sys.stderr, "Error: %s" % error
         sys.exit(-1)
 
@@ -217,8 +217,8 @@ def sysinfo(show_stderr = False, show_successful_cmds = True, show_failed_cmds =
         ('Xorg errors',        '''grep '^\[.*(EE)' /var/log/Xorg.0.log'''),
         ('Kernel buffer tail', '''dmesg | tail'''),
         ('Last few reboots',   '''last -x -n10 reboot runlevel'''),
-        ('YUM Repositories',   '''yum -C repolist''', '''ls -l /etc/yum.repos.d''', '''grep -v '^#' /etc/yum.conf'''),
-        ('YUM Extras',         '''yum -C list extras'''),
+        ('DNF Repositories',   '''dnf -C repolist''', '''ls -l /etc/yum.repos.d''', '''grep -v '^#' /etc/yum.conf'''),
+        ('DNF Extras',         '''dnf -C list extras'''),
         ('Last 20 packages installed', '''rpm -qa --nodigest --nosignature --last | head -20''')]
         #('Installed packages', '''rpm -qa --nodigest --nosignature | sort''', '''dpkg -l''') ]
     si = []
