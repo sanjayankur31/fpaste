@@ -211,7 +211,7 @@ def sysinfo(show_stderr = False, show_successful_cmds = True, show_failed_cmds =
         ('Block devices',      '''blkid''', '''/sbin/blkid'''),
         ('PCI devices',        '''lspci''', '''/sbin/lspci'''),
         ('USB devices',        '''lsusb''', '''/sbin/lsusb'''),
-        ('DRM Information',    '''grep drm /var/log/dmesg'''),
+        ('DRM Information',    '''journalctl -k -b | grep drm'''),
         ('Xorg modules',       '''grep LoadModule /var/log/Xorg.0.log | cut -d \\" -f 2 | xargs'''),
         ('GL Support',         '''glxinfo | grep -E "OpenGL version|OpenGL renderer"'''),
         ('Xorg errors',        '''grep '^\[.*(EE)' /var/log/Xorg.0.log'''),
