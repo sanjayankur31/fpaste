@@ -1,5 +1,12 @@
 fpaste ChangeLog
 
+0.3.7.4 - 20150522
+
+ *) Update desktop list
+ *) Update to use dnf
+ *) Update to use new Xorg locations
+ *) Update to get DRM info which had broken previously
+
 0.3.7.3.3 - 20140714
 0.3.7.3.2 - 20140714
 
