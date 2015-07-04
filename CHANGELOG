@@ -1,5 +1,10 @@
 fpaste ChangeLog
 
+0.3.8.0 - 20150704
+
+ *) Update to py3
+ *) Some pep8/pep257 changes
+
 0.3.7.4 - 20150522
 
  *) Update desktop list
