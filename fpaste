@@ -16,7 +16,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-VERSION = '0.3.8.0'
+VERSION = '0.3.8.1'
 USER_AGENT = 'fpaste/' + VERSION
 SET_DESCRIPTION_IF_EMPTY = 1  # stdin, clipboard, sysinfo
 # FPASTE_URL = 'http://fpaste.org/'
@@ -277,8 +277,7 @@ def sysinfo(
          '''ls -l /etc/yum.repos.d''',
          '''grep -v '^#' /etc/yum.conf'''),
         ('DNF Extras',         '''dnf -C list extras'''),
-        ('Last 20 packages installed', '''rpm -qa --nodigest --nosignature
-         --last | head -20''')]
+        ('Last 20 packages installed', '''rpm -qa --nodigest --nosignature --last | head -20''')]
         #('Installed packages', '''rpm -qa --nodigest --nosignature | sort''', '''dpkg -l''') ]
     si = []
 

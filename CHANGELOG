@@ -1,5 +1,9 @@
 fpaste ChangeLog
 
+0.3.8.1 - 20150929
+
+ *) Fix rhbz 1262937 - bug in rpm -qa section
+
 0.3.8.0 - 20150704
 
  *) Update to py3
