@@ -152,8 +152,8 @@ def paste(text, options):
         if options.debug:
             print("Using proxy: %s" % options.proxy, file=sys.stderr)
         req.set_proxy(options.proxy, 'http')
-
-    print("Uploading (%.1fKiB)..." % pasteSizeKiB, file=sys.stderr)
+    if not options.rawurl:
+        print("Uploading (%.1fKiB)..." % pasteSizeKiB, file=sys.stderr)
 
     try:
         f = urllib.request.urlopen(req)
@@ -205,7 +205,9 @@ def paste(text, options):
     else:
         url = "{0}{1}".format(options.url, id)
 
-    short_url = get_shortened_url(url, options.password)
+    if not options.rawurl:
+        short_url = get_shortened_url(url, options.password)
+    else: short_url = None
     if short_url:
         return [url, short_url]
     else:
@@ -712,6 +714,12 @@ Examples:
         help='print paste, and prompt for confirmation before sending',
         action="store_true",
         default=False)
+    fpasteProg_group.add_option(
+        '',
+        '--rawurl',
+        dest='rawurl',
+        action="store_true",
+        default=False)
     parser.add_option_group(fpasteProg_group)
 
 # Let default be anonymous.
@@ -869,9 +877,11 @@ Examples:
                 else:
                     print("URL copied to primary clipboard")
 
-        if not short_url:
+        if ( not short_url and not options.rawurl ):
             print("WARNING: Could not shorten URL", file=sys.stderr)
             print(url)
+        elif options.rawurl:
+            print(url + "/raw/")
         else:
             print(short_url + " -> " + url)
 
