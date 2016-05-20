@@ -20,7 +20,7 @@ VERSION = '0.3.8.1'
 USER_AGENT = 'fpaste/' + VERSION
 SET_DESCRIPTION_IF_EMPTY = 1  # stdin, clipboard, sysinfo
 # FPASTE_URL = 'http://fpaste.org/'
-FPASTE_URL = 'http://paste.fedoraproject.org/'
+FPASTE_URL = 'https://paste.fedoraproject.org/'
 
 import os
 import sys
