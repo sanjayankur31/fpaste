@@ -1,5 +1,9 @@
 fpaste ChangeLog
 
+0.3.8.2 - 20160608
+
+ *) Apply randomuser's patch to use https
+
 0.3.8.1 - 20150929
 
  *) Fix rhbz 1262937 - bug in rpm -qa section
