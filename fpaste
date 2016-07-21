@@ -745,7 +745,7 @@ Examples:
         print(
             "install fpaste to local ~/bin dir by running:    mkdir -p ~/bin; curl " +
             url +
-            "raw/ -o ~/bin/fpaste && chmod +x ~/bin/fpaste",
+            "/raw -o ~/bin/fpaste && chmod +x ~/bin/fpaste",
             file=sys.stderr)
 
     sys.exit(0)
