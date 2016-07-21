@@ -199,33 +199,38 @@ def sysinfo(
          '''lsb_release -ds''',
          '''cat /etc/*-release | uniq''',
          'cat /etc/issue',
-         'cat /etc/motd'),
-        ('Kernel',             '''uname -r ; cat /proc/cmdline'''),
+         'cat /etc/motd'
+         ),
+        ('Kernel',             '''uname -r ; cat /proc/cmdline'''
+         ),
         ('Desktop(s) Running',
-         '''ps -eo comm= | grep -E
-         '(gnome-session|startkde|startactive|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session|mate-session|lxqt-session|cinnamon)'
-         '''),
+         '''ps -eo comm= | grep -E '(gnome-session|startkde|startactive|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session|mate-session|lxqt-session|cinnamon)' '''
+         ),
         ('Desktop(s) Installed',
-         '''ls -m /usr/share/xsessions/ | sed 's/\.desktop//g' '''),
+         '''ls -m /usr/share/xsessions/ | sed 's/\.desktop//g' '''
+         ),
         ('SELinux Status',
          '''sestatus''',
          '''/usr/sbin/sestatus''',
          '''getenforce''',
-         '''grep -v '^#' /etc/sysconfig/selinux'''),
+         '''grep -v '^#' /etc/sysconfig/selinux'''
+         ),
         ('SELinux Error Count',
-         '''selinuxenabled && journalctl --since yesterday |grep avc: |grep -Eo
-         "comm=\"[^ ]+" |sort |uniq -c |sort -rn'''),
+         '''selinuxenabled && journalctl --since yesterday |grep avc: | grep -Eo comm="[^ ]+" | sort |uniq -c |sort -rn'''
+         ),
         ('CPU Model',
          '''grep 'model name' /proc/cpuinfo | awk -F: '{print $2}' | uniq -c |
          sed -re 's/^ +//' ''',
-         '''grep 'model name' /proc/cpuinfo'''),
+         '''grep 'model name' /proc/cpuinfo'''
+         ),
         ('64-bit Support',
-         '''grep -q ' lm ' /proc/cpuinfo && echo Yes || echo No'''),
+         '''grep -q ' lm ' /proc/cpuinfo && echo Yes || echo No'''
+         ),
         ('Hardware Virtualization Support',
-         '''grep -Eq '(vmx|svm)' /proc/cpuinfo && echo Yes || echo No'''),
+         '''grep -Eq '(vmx|svm)' /proc/cpuinfo && echo Yes || echo No'''
+         ),
         ('Load average',       '''uptime'''),
         ('Memory usage',       '''free -m''', 'free'),
-        # ('Top',                '''top -n1 -b | head -15'''),
         ('Top 5 CPU hogs',     '''ps axuScnh | awk '$2!=''' +
          str(os.getpid()) +
             '''' | sort -rnk3 | head -5'''),
@@ -235,22 +240,24 @@ def sysinfo(
         ('PCI devices',        '''lspci''', '''/sbin/lspci'''),
         ('USB devices',        '''lsusb''', '''/sbin/lsusb'''),
         ('DRM Information',
-         '''journalctl -k -b | grep -o 'kernel:.*drm.*$' | cut -d ' ' -f 2-
-         '''),
+         '''journalctl -k -b | grep -o 'kernel:.*drm.*$' | cut -d ' ' -f 2- '''
+         ),
         ('Xorg modules',
-         '''grep LoadModule /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log |
-         cut -d \\" -f 2 | xargs'''),
+         '''grep LoadModule /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log | cut -d \\" -f 2 | xargs'''
+         ),
         ('GL Support',
-         '''glxinfo | grep -E "OpenGL version|OpenGL renderer"'''),
+         '''glxinfo | grep -E "OpenGL version|OpenGL renderer"'''
+         ),
         ('Xorg errors',
-         '''grep '^\[.*(EE)' /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log
-         | cut -d ':' -f 2- '''),
+         '''grep '^\[.*(EE)' /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log | cut -d ':' -f 2- '''
+         ),
         ('Kernel buffer tail', '''dmesg | tail'''),
         ('Last few reboots',   '''last -x -n10 reboot runlevel'''),
         ('DNF Repositories',
          '''dnf -C repolist''',
          '''ls -l /etc/yum.repos.d''',
-         '''grep -v '^#' /etc/yum.conf'''),
+         '''grep -v '^#' /etc/yum.conf'''
+         ),
         ('DNF Extras',         '''dnf -C list extras'''),
         ('Last 20 packages installed', '''rpm -qa --nodigest --nosignature --last | head -20''')]
         #('Installed packages', '''rpm -qa --nodigest --nosignature | sort''', '''dpkg -l''') ]
