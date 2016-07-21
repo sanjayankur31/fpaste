@@ -107,10 +107,6 @@ def paste(text, options):
     # if sent data exceeds maxlength, server dies without error returned, so,
     # we'll truncate the input here, until the server decides to truncate
     # instead of die
-    author = options.nick
-    if len(author) > 50:
-        author = author[0:50-3] + "..."
-
     data = json.dumps(
         {'language': options.lang, 'contents': text,
          'expiry_time': int(options.expires) + int(time.time()),
@@ -581,11 +577,6 @@ Examples:
     # pastebin-specific options first
     fpasteOrg_group = OptionGroup(parser, "fpaste.org Options")
     fpasteOrg_group.add_option(
-        '-n',
-        dest='nick',
-        help='your nickname; default is "%default";',
-        metavar='"NICKNAME"')
-    fpasteOrg_group.add_option(
         '-l',
         dest='lang',
         help='language of content for syntax highlighting; default is "%default"; use "list" to show all ' +
@@ -681,7 +672,6 @@ Examples:
 #        print >> sys.stderr, "WARNING Could not run whoami. Posting anonymously."
 
     parser.set_defaults(
-        nick='',
         lang='text',
         expires='2592000',
         selection='primary',
@@ -756,7 +746,6 @@ Examples:
     elif options.pasteself:
         text = open(sys.argv[0]).read()
         options.lang = 'python'
-        options.nick = 'Fedora Unity'
     elif options.sysinfo:
         text = sysinfo(options.debug)
     elif not args:   # read from stdin if no file args supplied
@@ -779,7 +768,6 @@ Examples:
                 text += '#' * 78 + '\n'
             text += open(f).read()
     if options.debug:
-        print('nick: "%s"' % options.nick)
         print('lang: "%s"' % options.lang)
         print('text (%d): "%s ..."' % (len(text), text[:80]))
 
