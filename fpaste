@@ -97,23 +97,12 @@ def get_shortened_url(long_url, password):
     except urllib.error.URLError:
         return False
 
-    # We know that short_url is always the third last line in the json output
-    # Iterating over each line is a bad idea. It'll break everytime it
-    # encounters a "short_url" string.
-    try:
-        result = json.loads(
-            '{' + f.readlines()[-3].decode() + '}')['short_url']
-    except ValueError as e:
-        return False
-    return result
-
-
 def paste(text, options):
     """Send text to paste server and return the URL."""
     import re
     if not text:
         print("No text to send.", file=sys.stderr)
-        return [False, False]
+        return False
 
     # if sent data exceeds maxlength, server dies without error returned, so,
     # we'll truncate the input here, until the server decides to truncate
@@ -141,7 +130,7 @@ def paste(text, options):
             "WARNING: your paste looks a lot like binary data instead of text.",
             file=sys.stderr)
         if not confirm("Send binary data anyway?"):
-            return [False, False]
+            return False
 
     req = urllib.request.Request(
         url=options.url + '/submit',
@@ -153,9 +142,8 @@ def paste(text, options):
         if options.debug:
             print("Using proxy: %s" % options.proxy, file=sys.stderr)
         req.set_proxy(options.proxy, 'http')
-    if not options.rawurl:
-        print("Uploading (%.1fKiB)..." % pasteSizeKiB, file=sys.stderr)
 
+    print("Uploading (%.1fKiB)..." % pasteSizeKiB, file=sys.stderr)
     try:
         f = urllib.request.urlopen(req)
     except urllib.error.URLError as e:
@@ -165,7 +153,7 @@ def paste(text, options):
             print("Server Error: %d - %s" % (e.code, e.msg), file=sys.stderr)
             if options.debug:
                 print(f.read())
-        return [False, False]
+        return False
 
     try:
         response = json.loads(f.read().decode())
@@ -173,19 +161,10 @@ def paste(text, options):
         print(
             "Error: Server did not return a correct JSON response",
             file=sys.stderr)
-        return [False, False]
+        return False
 
     url = response['url']
-    return [url, None]
-
-    # if not options.rawurl:
-        # short_url = get_shortened_url(url, options.password)
-    # else: short_url = None
-    # if short_url:
-    #     return [url, short_url]
-    # else:
-    #     return [url, False]
-
+    return url
 
 def sysinfo(
         show_stderr=False, show_successful_cmds=True, show_failed_cmds=True):
@@ -215,7 +194,7 @@ def sysinfo(
          '''getenforce''',
          '''grep -v '^#' /etc/sysconfig/selinux'''
          ),
-        ('SELinux Error Count',
+        ('SELinux Errors',
          '''selinuxenabled && journalctl --since yesterday |grep avc: | grep -Eo comm="[^ ]+" | sort |uniq -c |sort -rn'''
          ),
         ('CPU Model',
@@ -275,14 +254,19 @@ def sysinfo(
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE)
             (out, err) = p.communicate()
+            if not p.returncode == 0:
+                if show_stderr:
+                    if err:
+                        print(
+                            "sysinfo Error: the cmd \"%s\" returned %d with stderr: %s" %
+                            (cmd, p.returncode, err), file=sys.stderr)
+                    else:
+                        print(
+                            "sysinfo Error: the cmd \"%s\" returned %d without errors" %
+                            (cmd, p.returncode), file=sys.stderr)
+                    print("Trying next fallback cmd...", file=sys.stderr)
             if p.returncode == 0 and out:
                 break
-            else:
-                if show_stderr:
-                    print(
-                        "sysinfo Error: the cmd \"%s\" returned %d with stderr: %s" %
-                        (cmd, p.returncode, err), file=sys.stderr)
-                    print("Trying next fallback cmd...", file=sys.stderr)
         if out:
             if show_successful_cmds:
                 si.append(('%s (%s)' % (cmdname, cmd), out))
@@ -291,7 +275,7 @@ def sysinfo(
         else:
             if show_failed_cmds:
                 si.append(
-                    ('%s (failed: "%s")' %
+                    ('%s (without results: "%s")' %
                      (cmdname,
                       '" AND "'.join(
                           cmds[
@@ -686,13 +670,6 @@ Examples:
         help='print paste, and prompt for confirmation before sending',
         action="store_true",
         default=False)
-    fpasteProg_group.add_option(
-        '',
-        '--rawurl',
-        dest='rawurl',
-        help='return only the raw content URL; does not attempt to shorten the URL',
-        action="store_true",
-        default=False)
     parser.add_option_group(fpasteProg_group)
 
 # Let default be anonymous.
@@ -822,7 +799,7 @@ Examples:
         if not confirm("OK to send?"):
             sys.exit(1)
 
-    [url, short_url] = paste(text, options)
+    url = paste(text, options)
     if url:
         # try to save URL in clipboard, and warn but don't error
         if options.clipout:
@@ -849,13 +826,7 @@ Examples:
                 else:
                     print("URL copied to primary clipboard")
 
-        if ( not short_url and not options.rawurl ):
-            print("WARNING: Could not shorten URL", file=sys.stderr)
-            print(url)
-        elif options.rawurl:
-            print(url + "/raw/")
-        else:
-            print(short_url + " -> " + url)
+        print(url)
 
     else:
         sys.exit(1)
