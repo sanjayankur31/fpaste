@@ -83,20 +83,6 @@ def confirm(prompt="OK?"):
         return False
 
 
-def get_shortened_url(long_url, password):
-    """Get shortened URL from paste data."""
-    # NOTE: this uses password, not paste_password
-    if password:
-        params = urllib.parse.urlencode({'mode': 'json', 'password': password})
-    else:
-        params = 'mode=json'
-
-    req = urllib.request.Request(url=long_url+'/', data=params.encode())
-    try:
-        f = urllib.request.urlopen(req)
-    except urllib.error.URLError:
-        return False
-
 def paste(text, options):
     """Send text to paste server and return the URL."""
     import re
