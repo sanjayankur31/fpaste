@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""fpaste - a cli frontend for the fpaste.org pastebin"""
+"""fpaste - a cli frontend for the fpaste.org pastebin."""
 #
 # Copyright 2008, 2010 Fedora Unity Project (http://fedoraunity.org)
 # Author: Jason 'zcat' Farrell <farrellj@gmail.com>
@@ -20,7 +20,7 @@ VERSION = '0.3.8.3'
 USER_AGENT = 'fpaste/' + VERSION
 SET_DESCRIPTION_IF_EMPTY = 1  # stdin, clipboard, sysinfo
 # FPASTE_URL = 'http://fpaste.org/'
-FPASTE_URL = 'https://paste.fedoraproject.org/'
+FPASTE_URL = 'http://modernpaste.fedorainfracloud.org/api/paste'
 
 import os
 import sys
@@ -28,6 +28,7 @@ import urllib.request
 import urllib.parse
 import urllib.error
 import subprocess
+import time
 import json
 from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
 
@@ -121,12 +122,11 @@ def paste(text, options):
     if len(author) > 50:
         author = author[0:50-3] + "..."
 
-    params = urllib.parse.urlencode(
-        {'paste_lang': options.lang, 'paste_data': text, 'paste_private':
-         options.make_private, 'paste_expire': options.expires,
-         'paste_password': options.password, 'paste_user': author, 'api_submit'
-         : 'true', 'mode': 'json'})
-    pasteSizeKiB = len(params)/1024.0
+    data = json.dumps(
+        {'language': options.lang, 'contents': text,
+         'expiry_time': int(options.expires) + int(time.time()),
+         'password': options.password}).encode('utf8')
+    pasteSizeKiB = len(data)/1024.0
 
     # 512KiB appears to be the current hard limit (20110404); old limit was
     # 16MiB
@@ -144,10 +144,11 @@ def paste(text, options):
             return [False, False]
 
     req = urllib.request.Request(
-        url=options.url,
-        data=params.encode(),
+        url=options.url + '/submit',
+        data=data,
         headers={
-            'User-agent': USER_AGENT})
+            'User-agent': USER_AGENT,
+            'Content-Type': 'application/json'})
     if options.proxy:
         if options.debug:
             print("Using proxy: %s" % options.proxy, file=sys.stderr)
@@ -174,44 +175,16 @@ def paste(text, options):
             file=sys.stderr)
         return [False, False]
 
-    if 'error' in response['result']:
-        error = response['result']['error']
-        if error == 'err_spamguard_php':
-            print(
-                "Error: Poster's IP address is listed as malicious",
-                file=sys.stderr)
-        elif error == 'err_spamguard_noflood':
-            print("Error: Poster is trying to flood", file=sys.stderr)
-        elif error == 'err_spamguard_stealth':
-            print(
-                "Error: The paste triggered the spam filter",
-                file=sys.stderr)
-        elif error == 'err_spamguard_ipban':
-            print("Error: Poster's IP address is banned", file=sys.stderr)
-        elif error == 'err_author_numeric':
-            print(
-                "Error: Poster's alias should be alphanumeric",
-                file=sys.stderr)
-        else:
-            print("Error: %s" % error, file=sys.stderr)
-        sys.exit(-1)
+    url = response['url']
+    return [url, None]
 
-    id = [i[1]["id"] for i in response.items()].pop()
-#        for k,j in i.iteritems():
-#            print j, k
-    if options.make_private == 'yes':
-        private_hash = [i[1]["hash"] for i in response.items()].pop()
-        url = "{0}{1}/{2}".format(options.url, id, private_hash)
-    else:
-        url = "{0}{1}".format(options.url, id)
-
-    if not options.rawurl:
-        short_url = get_shortened_url(url, options.password)
-    else: short_url = None
-    if short_url:
-        return [url, short_url]
-    else:
-        return [url, False]
+    # if not options.rawurl:
+        # short_url = get_shortened_url(url, options.password)
+    # else: short_url = None
+    # if short_url:
+    #     return [url, short_url]
+    # else:
+    #     return [url, False]
 
 
 def sysinfo(
@@ -567,7 +540,6 @@ def main():
                        "z80",
                        "zxbasic"]
     validClipboardSelectionOpts = ['primary', 'secondary', 'clipboard']
-    validPrivateOpts = ['yes', 'no']
     ext2lang_map = {
         'sh': 'bash',
         'bash': 'bash',
@@ -636,13 +608,6 @@ Examples:
         help='time before paste is removed; default is %default seconds; valid options: ' +
         ', '.join(validExpiresOpts),
         metavar='EXPIRES')
-    fpasteOrg_group.add_option(
-        '-P',
-        '--private',
-        help='make paste private; default is %default; valid options: ' +
-        ', '.join(validPrivateOpts),
-        dest='make_private',
-        metavar='"PRIVATE"')
     fpasteOrg_group.add_option(
         '-U',
         '--URL',
@@ -734,10 +699,9 @@ Examples:
     parser.set_defaults(
         nick='',
         lang='text',
-        make_private='yes',
         expires='2592000',
         selection='primary',
-        password='',
+        password=None,
         url=FPASTE_URL)
     (options, args) = parser.parse_args()
 
