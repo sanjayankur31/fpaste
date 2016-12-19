@@ -19,8 +19,7 @@
 VERSION = '0.3.8.3'
 USER_AGENT = 'fpaste/' + VERSION
 SET_DESCRIPTION_IF_EMPTY = 1  # stdin, clipboard, sysinfo
-# FPASTE_URL = 'http://fpaste.org/'
-FPASTE_URL = 'http://modernpaste.fedorainfracloud.org/api/paste'
+FPASTE_URL = 'http://modernpaste.stg.fedoraproject.org/api/paste'
 
 import os
 import sys
