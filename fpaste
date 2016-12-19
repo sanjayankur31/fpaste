@@ -538,7 +538,7 @@ Examples:
         '-o',
         '--clipout',
         dest='clipout',
-        help='save returned paste URL to X clipboard',
+        help='save returned paste URL to X clipboard [requires xsel]',
         action="store_true",
         default=False)
     fpasteProg_group.add_option(
