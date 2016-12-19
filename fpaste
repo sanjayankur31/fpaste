@@ -94,6 +94,7 @@ def paste(text, options):
     # instead of die
     data = json.dumps(
         {'language': options.lang, 'contents': text,
+         'title': options.title,
          'expiry_time': int(options.expires) + int(time.time()),
          'password': options.password}).encode('utf8')
     pasteSizeKiB = len(data)/1024.0
@@ -482,8 +483,8 @@ Examples:
   %%prog file1.txt file2.txt
   dmesg | %%prog
   (prog1; prog2; prog3) | fpaste
-  %%prog --sysinfo -d "my laptop" --confirm
-  %%prog -n codemonkey -d "problem with foo" -l python foo.py""" % FPASTE_URL
+  %%prog --sysinfo -d "my pass" --confirm
+  %%prog -t "debug output" -d "problem with foo" -l python foo.py""" % FPASTE_URL
 
     parser = OptionParser(usage=usage, version='%prog '+VERSION)
     parser.add_option(
@@ -497,6 +498,12 @@ Examples:
 
     # pastebin-specific options first
     fpasteOrg_group = OptionGroup(parser, "fpaste.org Options")
+    fpasteOrg_group.add_option(
+        '-t',
+        '--title',
+        dest='title',
+        help='title of paste; defaults to UNTITLED',
+        metavar='"TITLE"')
     fpasteOrg_group.add_option(
         '-l',
         dest='lang',
