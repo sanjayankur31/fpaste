@@ -229,8 +229,8 @@ def sysinfo(
          'cat /etc/motd'),
         ('Kernel',             '''uname -r ; cat /proc/cmdline'''),
         ('Desktop(s) Running',
-         '''ps -eo comm= | grep -E
-         '(gnome-session|startkde|startactive|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session|mate-session|lxqt-session|cinnamon)'
+         '''ps -eo comm= | grep -E \
+         '(gnome-session-b|gnome-session|startkde|startactive|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session|mate-session|lxqt-session|cinnamon)'
          '''),
         ('Desktop(s) Installed',
          '''ls -m /usr/share/xsessions/ | sed 's/\.desktop//g' '''),
