@@ -96,16 +96,9 @@ def get_shortened_url(long_url, password):
     except urllib.error.URLError:
         return False
 
-    # We know that short_url is always the third last line in the json output
-    # Iterating over each line is a bad idea. It'll break everytime it
-    # encounters a "short_url" string.
-    try:
-        result = json.loads(
-            '{' + f.readlines()[-3].decode() + '}')['short_url']
-    except ValueError as e:
-        return False
-    return result
-
+    return (json.loads(f.read().decode('utf-8'))
+                .get('result', {})
+                .get('short_url', False))
 
 def paste(text, options):
     """Send text to paste server and return the URL."""
