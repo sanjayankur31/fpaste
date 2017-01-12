@@ -663,7 +663,7 @@ Examples:
         '-o',
         '--clipout',
         dest='clipout',
-        help='save returned paste URL to X clipboard',
+        help='save returned paste URL to all available clipboards',
         action="store_true",
         default=False)
     fpasteProg_group.add_option(
@@ -847,7 +847,6 @@ Examples:
     [url, short_url] = paste(text, options)
     if url:
         # Try to save URL in clipboard, and warn but don't throw error
-        copy_to_clipboard_status = False
         if options.clipout:
             if not os.access('/usr/bin/xsel', os.X_OK):
                 print(
@@ -857,7 +856,6 @@ Examples:
                 # Copy the url in all the valid clipboard options
                 for selection in validClipboardSelectionOpts:
                     xselcmd = 'xsel -i --%s' % selection
-                # os.popen(xselcmd, 'wb').write(url)
                     p = subprocess.Popen(
                         xselcmd,
                         shell=True,
@@ -869,12 +867,8 @@ Examples:
                         if options.debug:
                             print(err, file=sys.stderr)
                         print(
-                            "WARNING: URL not saved to clipboard",
+                            "WARNING: URL not saved to %s" % selection,
                             file=sys.stderr)
-                        copy_to_clipboard_status = True
-
-                if not copy_to_clipboard_status:
-                    print("URL copied to clipboards")
 
         if ( not short_url and not options.rawurl ):
             print("WARNING: Could not shorten URL", file=sys.stderr)
