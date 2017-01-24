@@ -668,7 +668,7 @@ Examples:
         default=False)
     fpasteProg_group.add_option(
         '',
-        '--selection',
+        '--input-selection',
         dest='selection',
         help='specify which X clipboard to use. valid options: "primary" (default; middle-mouse-button paste), "secondary" (uncommon), or "clipboard" (ctrl-v paste)',
         metavar='CLIP')
