@@ -16,11 +16,11 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-VERSION = '0.3.7.4'
+VERSION = '0.3.7.4.1'
 USER_AGENT = 'fpaste/' + VERSION
 SET_DESCRIPTION_IF_EMPTY = 1  # stdin, clipboard, sysinfo
 #FPASTE_URL = 'http://fpaste.org/'
-FPASTE_URL = 'http://paste.fedoraproject.org/'
+FPASTE_URL = 'https://paste.fedoraproject.org/'
 
 import os, sys, urllib, urllib2, subprocess, json
 from optparse import OptionParser, OptionGroup, SUPPRESS_HELP

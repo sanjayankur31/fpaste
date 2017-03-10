@@ -1,5 +1,9 @@
 fpaste ChangeLog
 
+0.3.7.4.1 - 20170310
+
+ *) Temporary py2 version with https support
+
 0.3.7.4 - 20150522
 
  *) Update desktop list
