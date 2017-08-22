@@ -285,11 +285,6 @@ def sysinfo(
     return sistr
 
 
-def generate_man_page():
-    """TODO: generate man page from usage."""
-    pass
-
-
 def summarize_text(text):
     # use beginning/middle/end content snippets as a description summary. 120 char limit
     # "36chars ... 36chars ... 36chars" == 118 chars
@@ -765,10 +760,7 @@ Examples:
 
 if __name__ == '__main__':
     try:
-        if '--generate-man' in sys.argv:
-            generate_man_page()
-        else:
-            main()
+        main()
     except KeyboardInterrupt:
         print("\ninterrupted.")
         sys.exit(1)
