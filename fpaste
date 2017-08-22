@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """fpaste - a cli frontend for the fpaste.org pastebin."""
-#
+
 # Copyright 2008, 2010 Fedora Unity Project (http://fedoraunity.org)
 # Author: Jason 'zcat' Farrell <farrellj@gmail.com>
 #
@@ -16,10 +16,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-VERSION = '0.3.8.3'
-USER_AGENT = 'fpaste/' + VERSION
-SET_DESCRIPTION_IF_EMPTY = 1  # stdin, clipboard, sysinfo
-FPASTE_URL = 'https://paste.fedoraproject.org/api/paste'
 
 import os
 import sys
@@ -30,6 +26,12 @@ import subprocess
 import time
 import json
 from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
+
+
+VERSION = '0.3.8.3'
+USER_AGENT = 'fpaste/' + VERSION
+SET_DESCRIPTION_IF_EMPTY = 1  # stdin, clipboard, sysinfo
+FPASTE_URL = 'https://paste.fedoraproject.org/api/paste'
 
 
 def is_text(text, maxCheck=100, pctPrintable=0.75):
@@ -84,7 +86,6 @@ def confirm(prompt="OK?"):
 
 def paste(text, options):
     """Send text to paste server and return the URL."""
-    import re
     if not text:
         print("No text to send.", file=sys.stderr)
         return False
@@ -147,6 +148,7 @@ def paste(text, options):
 
     url = response['url']
     return url
+
 
 def sysinfo(
         show_stderr=False, show_successful_cmds=True, show_failed_cmds=True):
@@ -221,8 +223,8 @@ def sysinfo(
          ),
         ('DNF Extras',         '''dnf -C list extras'''),
         ('Last 20 packages installed', '''rpm -qa --nodigest --nosignature --last | head -20'''),
+        # ('Installed packages', '''rpm -qa --nodigest --nosignature | sort''', '''dpkg -l''') ]
         ('EFI boot manager output', '''efibootmgr -v''')]
-        #('Installed packages', '''rpm -qa --nodigest --nosignature | sort''', '''dpkg -l''') ]
     si = []
 
     print("Gathering system info", end=' ', file=sys.stderr)
@@ -647,6 +649,7 @@ Examples:
     # and lang not changed from default
     if options.lang == 'text':
         all_exts_similar = False
+        ext_prev = ""
         for i in range(0, len(args)):
             all_exts_similar = True
             ext = os.path.splitext(args[i])[1].lstrip(os.extsep)
