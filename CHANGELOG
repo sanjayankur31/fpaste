@@ -1,5 +1,9 @@
 fpaste ChangeLog
 
+0.3.9.0 - 20170822
+
+ *) Ready for modernpaste
+
 0.3.8.3 - 20160613
 
  *) Migrate to pagure
