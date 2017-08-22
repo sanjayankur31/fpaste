@@ -236,7 +236,11 @@ def sysinfo(
                 shell=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE)
-            (out, err) = p.communicate()
+            try:
+                (out, err) = p.communicate(timeout=300)
+            except subprocess.TimeoutExpired:
+                p.kill()
+                (out, err) = p.communicate()
             if not p.returncode == 0:
                 if show_stderr:
                     if err:
