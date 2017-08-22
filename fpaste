@@ -30,7 +30,6 @@ from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
 
 VERSION = '0.3.8.3'
 USER_AGENT = 'fpaste/' + VERSION
-SET_DESCRIPTION_IF_EMPTY = 1  # stdin, clipboard, sysinfo
 FPASTE_URL = 'https://paste.fedoraproject.org/api/paste'
 
 
