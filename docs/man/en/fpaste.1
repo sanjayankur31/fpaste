@@ -14,9 +14,9 @@ show program's version number and exit
 \fB\-h, \-\-help\fR
 show help message and exit
 .TP 
-\fB\-n "NICKNAME"\fR
-your nickname; default is ""
-.TP 
+\fB\-t "TITLE", \-\-title="TITLE"\fR
+title for paste; default is UNTITLED
+.TP
 \fB\-d "PASSWORD", \-\-password="PASSWORD"\fR
 password for paste; default is ""
 .TP 
@@ -24,7 +24,7 @@ password for paste; default is ""
 language of content for syntax highlighting; default is "text"; use "list" to show all 200+ supported langs
 .TP 
 \fB\-x "EXPIRES"\fR
-time before paste is removed; default is 2592000 seconds; valid options: 1800, 21600, 86400, 604800, 2592000
+time before paste is removed; default is 604800 seconds for unauthenticated posts; valid options: 1800, 21600, 86400, 604800, 2592000
 .TP 
 \fB\-U, \-\-URL "URL"\fR
 URL of fpaste server; default is http://fpaste.org
@@ -32,12 +32,8 @@ URL of fpaste server; default is http://fpaste.org
 \fB\-P, \-\-private\fR
 make paste private; default is yes; valid options: yes, no
 .TP 
-\fB\ \-\-rawurl\fR
-return only the raw content URL; does not attempt to shorten the URL.  Suitable for use with scripts.
-.br 
-.TP 
 \fB\-i, \-\-clipin\fR
-read paste text from current X clipboard selection
+read paste text from current X clipboard selection [requires xsel]
 .TP 
 \fB\-o, \-\-clipout\fR
 save returned paste URL to all the clipboards i.e primary, secondary and clipboard
@@ -103,7 +99,7 @@ Gather and paste various information about the running system. The info collecte
 .SH "BUGS"
 Report bugs to: https://pagure.io/fpaste/new_issue
 .br 
-or to: Jason 'zcat' Farrell <farrellj AT gmail DOT com>.
+or to: Jason 'zcat' Farrell <farrellj AT gmail DOT com> and Ankur Sinha 'FranciscoD' <ankursinha AT fedoraproject DOT org>.
 .SH "AUTHOR"
 Fedora Unity
 

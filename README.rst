@@ -34,11 +34,20 @@ Why?
 Who?
 ====
 
-fpaste maintainer:
-    Jason 'zcat' Farrell <farrellj a gmail.com>
-Server-side fpaste.org ninja:
-    Jonathan 'daMaestro' Steffan <jon a fedoraunity.org>
+fpaste maintainers:
+
+- Jason 'zcat' Farrell <farrellj AT gmail DOT com>
+- Ankur Sinha 'FranciscoD' <ankursinha AT fedoraproject DOT org>
+
+Server-side fpaste.org maintainers:
+
+- The `Fedora infrastructure team <https://fedoraproject.org/wiki/Infrastructure>`__
+- Jonathan 'daMaestro' Steffan <jon AT fedoraunity DOT org>
+
 Mr. FUPT - http://fedorasolved.org/Members/khaytsus/fedora-unity-paste-tool
-    Walter 'Khaytsus' Francis <wally a theblackmoor.net>
+
+- Walter 'Khaytsus' Francis <wally AT theblackmoor DOT net>
+
 Inspiration from ye olde bash script. R.I.P. rafb.net/paste
-    Ignacio Vazquez-Abrams <ivazqueznet a gmail.com>
+
+- Ignacio Vazquez-Abrams <ivazqueznet AT gmail DOT com>

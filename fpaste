@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""fpaste - a cli frontend for the fpaste.org pastebin"""
+"""fpaste - a cli frontend for the fpaste.org pastebin."""
 #
 # Copyright 2008, 2010 Fedora Unity Project (http://fedoraunity.org)
 # Author: Jason 'zcat' Farrell <farrellj@gmail.com>
@@ -19,8 +19,7 @@
 VERSION = '0.3.8.3'
 USER_AGENT = 'fpaste/' + VERSION
 SET_DESCRIPTION_IF_EMPTY = 1  # stdin, clipboard, sysinfo
-# FPASTE_URL = 'http://fpaste.org/'
-FPASTE_URL = 'https://paste.fedoraproject.org/'
+FPASTE_URL = 'https://paste.fedoraproject.org/api/paste'
 
 import os
 import sys
@@ -28,6 +27,7 @@ import urllib.request
 import urllib.parse
 import urllib.error
 import subprocess
+import time
 import json
 from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
 
@@ -82,44 +82,22 @@ def confirm(prompt="OK?"):
         return False
 
 
-def get_shortened_url(long_url, password):
-    """Get shortened URL from paste data."""
-    # NOTE: this uses password, not paste_password
-    if password:
-        params = urllib.parse.urlencode({'mode': 'json', 'password': password})
-    else:
-        params = 'mode=json'
-
-    req = urllib.request.Request(url=long_url+'/', data=params.encode())
-    try:
-        f = urllib.request.urlopen(req)
-    except urllib.error.URLError:
-        return False
-
-    return (json.loads(f.read().decode('utf-8'))
-                .get('result', {})
-                .get('short_url', False))
-
 def paste(text, options):
     """Send text to paste server and return the URL."""
     import re
     if not text:
         print("No text to send.", file=sys.stderr)
-        return [False, False]
+        return False
 
     # if sent data exceeds maxlength, server dies without error returned, so,
     # we'll truncate the input here, until the server decides to truncate
     # instead of die
-    author = options.nick
-    if len(author) > 50:
-        author = author[0:50-3] + "..."
-
-    params = urllib.parse.urlencode(
-        {'paste_lang': options.lang, 'paste_data': text, 'paste_private':
-         options.make_private, 'paste_expire': options.expires,
-         'paste_password': options.password, 'paste_user': author, 'api_submit'
-         : 'true', 'mode': 'json'})
-    pasteSizeKiB = len(params)/1024.0
+    data = json.dumps(
+        {'language': options.lang, 'contents': text,
+         'title': options.title,
+         'expiry_time': int(options.expires) + int(time.time()),
+         'password': options.password}).encode('utf8')
+    pasteSizeKiB = len(data)/1024.0
 
     # 512KiB appears to be the current hard limit (20110404); old limit was
     # 16MiB
@@ -134,20 +112,20 @@ def paste(text, options):
             "WARNING: your paste looks a lot like binary data instead of text.",
             file=sys.stderr)
         if not confirm("Send binary data anyway?"):
-            return [False, False]
+            return False
 
     req = urllib.request.Request(
-        url=options.url,
-        data=params.encode(),
+        url=options.url + '/submit',
+        data=data,
         headers={
-            'User-agent': USER_AGENT})
+            'User-agent': USER_AGENT,
+            'Content-Type': 'application/json'})
     if options.proxy:
         if options.debug:
             print("Using proxy: %s" % options.proxy, file=sys.stderr)
         req.set_proxy(options.proxy, 'http')
-    if not options.rawurl:
-        print("Uploading (%.1fKiB)..." % pasteSizeKiB, file=sys.stderr)
 
+    print("Uploading (%.1fKiB)..." % pasteSizeKiB, file=sys.stderr)
     try:
         f = urllib.request.urlopen(req)
     except urllib.error.URLError as e:
@@ -157,7 +135,7 @@ def paste(text, options):
             print("Server Error: %d - %s" % (e.code, e.msg), file=sys.stderr)
             if options.debug:
                 print(f.read())
-        return [False, False]
+        return False
 
     try:
         response = json.loads(f.read().decode())
@@ -165,47 +143,10 @@ def paste(text, options):
         print(
             "Error: Server did not return a correct JSON response",
             file=sys.stderr)
-        return [False, False]
+        return False
 
-    if 'error' in response['result']:
-        error = response['result']['error']
-        if error == 'err_spamguard_php':
-            print(
-                "Error: Poster's IP address is listed as malicious",
-                file=sys.stderr)
-        elif error == 'err_spamguard_noflood':
-            print("Error: Poster is trying to flood", file=sys.stderr)
-        elif error == 'err_spamguard_stealth':
-            print(
-                "Error: The paste triggered the spam filter",
-                file=sys.stderr)
-        elif error == 'err_spamguard_ipban':
-            print("Error: Poster's IP address is banned", file=sys.stderr)
-        elif error == 'err_author_numeric':
-            print(
-                "Error: Poster's alias should be alphanumeric",
-                file=sys.stderr)
-        else:
-            print("Error: %s" % error, file=sys.stderr)
-        sys.exit(-1)
-
-    id = [i[1]["id"] for i in response.items()].pop()
-#        for k,j in i.iteritems():
-#            print j, k
-    if options.make_private == 'yes':
-        private_hash = [i[1]["hash"] for i in response.items()].pop()
-        url = "{0}{1}/{2}".format(options.url, id, private_hash)
-    else:
-        url = "{0}{1}".format(options.url, id)
-
-    if not options.rawurl:
-        short_url = get_shortened_url(url, options.password)
-    else: short_url = None
-    if short_url:
-        return [url, short_url]
-    else:
-        return [url, False]
-
+    url = response['url']
+    return url
 
 def sysinfo(
         show_stderr=False, show_successful_cmds=True, show_failed_cmds=True):
@@ -219,33 +160,38 @@ def sysinfo(
          '''lsb_release -ds''',
          '''cat /etc/*-release | uniq''',
          'cat /etc/issue',
-         'cat /etc/motd'),
-        ('Kernel',             '''uname -r ; cat /proc/cmdline'''),
+         'cat /etc/motd'
+         ),
+        ('Kernel',             '''uname -r ; cat /proc/cmdline'''
+         ),
         ('Desktop(s) Running',
-         '''ps -eo comm= | grep -E
-         '(gnome-session|startkde|startactive|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session|mate-session|lxqt-session|cinnamon)'
-         '''),
+         '''ps -eo comm= | grep -E '(gnome-session|startkde|startactive|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session|mate-session|lxqt-session|cinnamon)' '''
+         ),
         ('Desktop(s) Installed',
-         '''ls -m /usr/share/xsessions/ | sed 's/\.desktop//g' '''),
+         '''ls -m /usr/share/xsessions/ | sed 's/\.desktop//g' '''
+         ),
         ('SELinux Status',
          '''sestatus''',
          '''/usr/sbin/sestatus''',
          '''getenforce''',
-         '''grep -v '^#' /etc/sysconfig/selinux'''),
-        ('SELinux Error Count',
-         '''selinuxenabled && journalctl --since yesterday |grep avc: |grep -Eo
-         "comm=\"[^ ]+" |sort |uniq -c |sort -rn'''),
+         '''grep -v '^#' /etc/sysconfig/selinux'''
+         ),
+        ('SELinux Errors',
+         '''selinuxenabled && journalctl --since yesterday |grep avc: | grep -Eo comm="[^ ]+" | sort |uniq -c |sort -rn'''
+         ),
         ('CPU Model',
          '''grep 'model name' /proc/cpuinfo | awk -F: '{print $2}' | uniq -c |
          sed -re 's/^ +//' ''',
-         '''grep 'model name' /proc/cpuinfo'''),
+         '''grep 'model name' /proc/cpuinfo'''
+         ),
         ('64-bit Support',
-         '''grep -q ' lm ' /proc/cpuinfo && echo Yes || echo No'''),
+         '''grep -q ' lm ' /proc/cpuinfo && echo Yes || echo No'''
+         ),
         ('Hardware Virtualization Support',
-         '''grep -Eq '(vmx|svm)' /proc/cpuinfo && echo Yes || echo No'''),
+         '''grep -Eq '(vmx|svm)' /proc/cpuinfo && echo Yes || echo No'''
+         ),
         ('Load average',       '''uptime'''),
         ('Memory usage',       '''free -m''', 'free'),
-        # ('Top',                '''top -n1 -b | head -15'''),
         ('Top 5 CPU hogs',     '''ps axuScnh | awk '$2!=''' +
          str(os.getpid()) +
             '''' | sort -rnk3 | head -5'''),
@@ -255,22 +201,24 @@ def sysinfo(
         ('PCI devices',        '''lspci''', '''/sbin/lspci'''),
         ('USB devices',        '''lsusb''', '''/sbin/lsusb'''),
         ('DRM Information',
-         '''journalctl -k -b | grep -o 'kernel:.*drm.*$' | cut -d ' ' -f 2-
-         '''),
+         '''journalctl -k -b | grep -o 'kernel:.*drm.*$' | cut -d ' ' -f 2- '''
+         ),
         ('Xorg modules',
-         '''grep LoadModule /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log |
-         cut -d \\" -f 2 | xargs'''),
+         '''grep LoadModule /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log | cut -d \\" -f 2 | xargs'''
+         ),
         ('GL Support',
-         '''glxinfo | grep -E "OpenGL version|OpenGL renderer"'''),
+         '''glxinfo | grep -E "OpenGL version|OpenGL renderer"'''
+         ),
         ('Xorg errors',
-         '''grep '^\[.*(EE)' /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log
-         | cut -d ':' -f 2- '''),
+         '''grep '^\[.*(EE)' /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log | cut -d ':' -f 2- '''
+         ),
         ('Kernel buffer tail', '''dmesg | tail'''),
         ('Last few reboots',   '''last -x -n10 reboot runlevel'''),
         ('DNF Repositories',
          '''dnf -C repolist''',
          '''ls -l /etc/yum.repos.d''',
-         '''grep -v '^#' /etc/yum.conf'''),
+         '''grep -v '^#' /etc/yum.conf'''
+         ),
         ('DNF Extras',         '''dnf -C list extras'''),
         ('Last 20 packages installed', '''rpm -qa --nodigest --nosignature --last | head -20''')]
         #('Installed packages', '''rpm -qa --nodigest --nosignature | sort''', '''dpkg -l''') ]
@@ -288,14 +236,19 @@ def sysinfo(
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE)
             (out, err) = p.communicate()
+            if not p.returncode == 0:
+                if show_stderr:
+                    if err:
+                        print(
+                            "sysinfo Error: the cmd \"%s\" returned %d with stderr: %s" %
+                            (cmd, p.returncode, err), file=sys.stderr)
+                    else:
+                        print(
+                            "sysinfo Error: the cmd \"%s\" returned %d without errors" %
+                            (cmd, p.returncode), file=sys.stderr)
+                    print("Trying next fallback cmd...", file=sys.stderr)
             if p.returncode == 0 and out:
                 break
-            else:
-                if show_stderr:
-                    print(
-                        "sysinfo Error: the cmd \"%s\" returned %d with stderr: %s" %
-                        (cmd, p.returncode, err), file=sys.stderr)
-                    print("Trying next fallback cmd...", file=sys.stderr)
         if out:
             if show_successful_cmds:
                 si.append(('%s (%s)' % (cmdname, cmd), out))
@@ -304,7 +257,7 @@ def sysinfo(
         else:
             if show_failed_cmds:
                 si.append(
-                    ('%s (failed: "%s")' %
+                    ('%s (without results: "%s")' %
                      (cmdname,
                       '" AND "'.join(
                           cmds[
@@ -358,233 +311,168 @@ def summarize_text(text):
 def main():
     """Main work function."""
     validExpiresOpts = ['1800', '21600', '86400', '604800', '2592000']
-    validSyntaxOpts = ["cpp",
-                       "diff",
-                       "gdb",
-                       "javascript",
-                       "text",
-                       "perl",
-                       "php",
-                       "python",
-                       "ruby",
-                       "xml",
-                       "abap",
-                       "6502acme",
-                       "actionscript",
-                       "actionscript3",
-                       "ada",
-                       "algol68",
-                       "apache",
-                       "applescript",
-                       "apt_sources",
-                       "asm",
-                       "asp",
-                       "autoconf",
-                       "autohotkey",
-                       "autoit",
-                       "avisynth",
-                       "awk",
-                       "bash",
-                       "basic4gl",
-                       "bf",
-                       "bibtex",
-                       "blitzbasic",
-                       "bnf",
-                       "boo",
-                       "c",
-                       "c_loadrunner",
-                       "c_mac",
-                       "caddcl",
-                       "cadlisp",
-                       "cfdg",
-                       "cfm",
-                       "chaiscript",
-                       "cil",
-                       "clojure",
-                       "cmake",
-                       "cobol",
-                       "cpp",
-                       "cpp-qt",
-                       "csharp",
-                       "css",
-                       "cuesheet",
-                       "d",
-                       "dcs",
-                       "delphi",
-                       "diff",
-                       "div",
-                       "dos",
-                       "dot",
-                       "e",
-                       "ecmascript",
-                       "eiffel",
-                       "email",
-                       "epc",
-                       "erlang",
-                       "f1",
-                       "falcon",
-                       "fo",
-                       "fortran",
-                       "freebasic",
-                       "fsharp",
-                       "4cs",
-                       "gambas",
-                       "gdb",
-                       "genero",
-                       "genie",
-                       "gettext",
-                       "glsl",
-                       "gml",
-                       "gnuplot",
-                       "go",
-                       "groovy",
-                       "gwbasic",
-                       "haskell",
-                       "hicest",
-                       "68000devpac",
-                       "hq9plus",
-                       "html4strict",
-                       "icon",
-                       "idl",
-                       "ini",
-                       "inno",
-                       "intercal",
-                       "io",
-                       "j",
-                       "java",
-                       "java5",
-                       "javascript",
-                       "jquery",
-                       "6502kickass",
-                       "kixtart",
-                       "klonec",
-                       "klonecpp",
-                       "latex",
-                       "lb",
-                       "lisp",
-                       "locobasic",
-                       "logtalk",
-                       "lolcode",
-                       "lotusformulas",
-                       "lotusscript",
-                       "lscript",
-                       "lsl2",
-                       "lua",
-                       "m68k",
-                       "magiksf",
-                       "make",
-                       "mapbasic",
-                       "matlab",
-                       "mirc",
-                       "mmix",
-                       "modula2",
-                       "modula3",
-                       "mpasm",
-                       "mxml",
-                       "mysql",
-                       "newlisp",
-                       "nsis",
-                       "oberon2",
-                       "objc",
-                       "objeck",
-                       "ocaml",
-                       "ocaml-brief",
-                       "oobas",
-                       "oracle11",
-                       "oracle8",
-                       "oxygene",
-                       "oz",
-                       "pascal",
-                       "pcre",
-                       "per",
-                       "perl",
-                       "perl6",
-                       "pf",
-                       "php",
-                       "php-brief",
-                       "pic16",
-                       "pike",
-                       "pixelbender",
-                       "plsql",
-                       "postgresql",
-                       "povray",
-                       "powerbuilder",
-                       "powershell",
-                       "progress",
-                       "prolog",
-                       "properties",
-                       "providex",
-                       "purebasic",
-                       "python",
-                       "q",
-                       "qbasic",
-                       "rails",
-                       "rebol",
-                       "reg",
-                       "robots",
-                       "rpmspec",
-                       "rsplus",
-                       "ruby",
-                       "sas",
-                       "scala",
-                       "scheme",
-                       "scilab",
-                       "sdlbasic",
-                       "smalltalk",
-                       "smarty",
-                       "sql",
-                       "systemverilog",
-                       "6502tasm",
-                       "tcl",
-                       "teraterm",
-                       "text",
-                       "thinbasic",
-                       "tsql",
-                       "typoscript",
-                       "unicon",
-                       "vala",
-                       "vb",
-                       "vbnet",
-                       "verilog",
-                       "vhdl",
-                       "vim",
-                       "visualfoxpro",
-                       "visualprolog",
-                       "whitespace",
-                       "whois",
-                       "winbatch",
-                       "xbasic",
-                       "xml",
-                       "xorg_conf",
-                       "xpp",
-                       "z80",
-                       "zxbasic"]
+    validSyntaxOpts = [
+        "apl",
+        "asn.1",
+        "asterisk",
+        "brainfuck",
+        "clike",
+        "clojure",
+        "gss",
+        "cmake",
+        "cobol",
+        "coffeescript",
+        "commonlisp",
+        "crystal",
+        "css",
+        "cypher",
+        "python",
+        "d",
+        "dart",
+        "django",
+        "dockerfile",
+        "diff",
+        "dtd",
+        "dylan",
+        "ebnf",
+        "ecl",
+        "eiffel",
+        "elm",
+        "erlang",
+        "factor",
+        "fcl",
+        "forth",
+        "fortran",
+        "mllike",
+        "gas",
+        "gherkin",
+        "go",
+        "groovy",
+        "haml",
+        "handlebars",
+        "haskell",
+        "haxe",
+        "html",
+        "htmlembedded",
+        "htmlmixed",
+        "http",
+        "idl",
+        "clike",
+        "jade",
+        "javascript",
+        "jinja2",
+        "julia",
+        "kotlin",
+        "less",
+        "livescript",
+        "lua",
+        "markdown",
+        "mathematica",
+        "mbox",
+        "mirc",
+        "modelica",
+        "mscgen",
+        "mumps",
+        "nginx",
+        "nsis",
+        "ntriples",
+        "clike",
+        "mllike",
+        "octave",
+        "oz",
+        "pascal",
+        "pegjs",
+        "perl",
+        "asciiarmor",
+        "php",
+        "pig",
+        "powershell",
+        "properties",
+        "protobuf",
+        "puppet",
+        "python",
+        "q",
+        "r",
+        "rpm",
+        "rst",
+        "ruby",
+        "rust",
+        "sas",
+        "sass",
+        "spreadsheet",
+        "scala",
+        "scheme",
+        "scss",
+        "shell",
+        "sieve",
+        "slim",
+        "smalltalk",
+        "smarty",
+        "solr",
+        "soy",
+        "stylus",
+        "sql",
+        "sparql",
+        "swift",
+        "stex",
+        "tcl",
+        "textile",
+        "tiddlywiki",
+        "tiki",
+        "toml",
+        "tornado",
+        "troff",
+        "ttcn",
+        "ttcn-cfg",
+        "turtle",
+        "twig",
+        "text",
+        "vb",
+        "vbscript",
+        "velocity",
+        "verilog",
+        "vhdl",
+        "vue",
+        "webidl",
+        "xml",
+        "xquery",
+        "yacas",
+        "yaml",
+        "yaml-frontmatter",
+        "Full list at: https://codemirror.net/mode/"
+    ]
     validClipboardSelectionOpts = ['primary', 'secondary', 'clipboard']
-    validPrivateOpts = ['yes', 'no']
     ext2lang_map = {
-        'sh': 'bash',
-        'bash': 'bash',
-        'bat': 'bat',
-        'c': 'c',
-        'h': 'c',
-        'cpp': 'cpp',
+        'sh': 'shell',
+        'bash': 'shell',
+        'c': 'clike',
+        'h': 'clike',
+        'hpp': 'clike',
+        'cpp': 'clike',
         'css': 'css',
-        'html': 'html4strict',
-        'htm': 'html4strict',
+        'diff': 'diff',
+        'html': 'html',
+        'htm': 'html',
         'ini': 'ini',
         'java': 'java',
         'js': 'javascript',
-        'jsp': 'java',
+        'jsp': 'htmlembedded',
+        'lua': 'lua',
+        'mbox': 'mbox',
+        'md': 'markdown',
         'pl': 'perl',
         'php': 'php',
         'php3': 'php',
         'py': 'python',
+        'r': 'r',
         'rb': 'ruby',
-        'rhtml': 'html4strict',
+        'rhtml': 'html',
+        'rst': 'rst',
         'sql': 'sql',
         'sqlite': 'sql',
+        'sty': 'stex',
         'tcl': 'tcl',
-        'vim': 'vim',
+        'tex': 'stex',
         'xml': 'xml'}
 
     usage = """\
@@ -595,8 +483,8 @@ Examples:
   %%prog file1.txt file2.txt
   dmesg | %%prog
   (prog1; prog2; prog3) | fpaste
-  %%prog --sysinfo -d "my laptop" --confirm
-  %%prog -n codemonkey -d "problem with foo" -l python foo.py""" % FPASTE_URL
+  %%prog --sysinfo -d "my pass" --confirm
+  %%prog -t "debug output" -d "my pass" -l python foo.py""" % FPASTE_URL
 
     parser = OptionParser(usage=usage, version='%prog '+VERSION)
     parser.add_option(
@@ -611,10 +499,11 @@ Examples:
     # pastebin-specific options first
     fpasteOrg_group = OptionGroup(parser, "fpaste.org Options")
     fpasteOrg_group.add_option(
-        '-n',
-        dest='nick',
-        help='your nickname; default is "%default";',
-        metavar='"NICKNAME"')
+        '-t',
+        '--title',
+        dest='title',
+        help='title of paste; defaults to UNTITLED',
+        metavar='"TITLE"')
     fpasteOrg_group.add_option(
         '-l',
         dest='lang',
@@ -626,16 +515,9 @@ Examples:
     fpasteOrg_group.add_option(
         '-x',
         dest='expires',
-        help='time before paste is removed; default is %default seconds; valid options: ' +
+        help='time before paste is removed; default is %default seconds for unauthenticated posts; valid options: ' +
         ', '.join(validExpiresOpts),
         metavar='EXPIRES')
-    fpasteOrg_group.add_option(
-        '-P',
-        '--private',
-        help='make paste private; default is %default; valid options: ' +
-        ', '.join(validPrivateOpts),
-        dest='make_private',
-        metavar='"PRIVATE"')
     fpasteOrg_group.add_option(
         '-U',
         '--URL',
@@ -707,13 +589,6 @@ Examples:
         help='print paste, and prompt for confirmation before sending',
         action="store_true",
         default=False)
-    fpasteProg_group.add_option(
-        '',
-        '--rawurl',
-        dest='rawurl',
-        help='return only the raw content URL; does not attempt to shorten the URL',
-        action="store_true",
-        default=False)
     parser.add_option_group(fpasteProg_group)
 
 # Let default be anonymous.
@@ -725,12 +600,10 @@ Examples:
 #        print >> sys.stderr, "WARNING Could not run whoami. Posting anonymously."
 
     parser.set_defaults(
-        nick='',
         lang='text',
-        make_private='yes',
-        expires='2592000',
+        expires='604800',
         selection='primary',
-        password='',
+        password=None,
         url=FPASTE_URL)
     (options, args) = parser.parse_args()
 
@@ -801,7 +674,6 @@ Examples:
     elif options.pasteself:
         text = open(sys.argv[0]).read()
         options.lang = 'python'
-        options.nick = 'Fedora Unity'
     elif options.sysinfo:
         text = sysinfo(options.debug)
     elif not args:   # read from stdin if no file args supplied
@@ -824,7 +696,6 @@ Examples:
                 text += '#' * 78 + '\n'
             text += open(f).read()
     if options.debug:
-        print('nick: "%s"' % options.nick)
         print('lang: "%s"' % options.lang)
         print('text (%d): "%s ..."' % (len(text), text[:80]))
 
@@ -844,7 +715,7 @@ Examples:
         if not confirm("OK to send?"):
             sys.exit(1)
 
-    [url, short_url] = paste(text, options)
+    url = paste(text, options)
     if url:
         # Try to save URL in clipboard, and warn but don't throw error
         if options.clipout:
@@ -870,13 +741,7 @@ Examples:
                             "WARNING: URL not saved to %s" % selection,
                             file=sys.stderr)
 
-        if ( not short_url and not options.rawurl ):
-            print("WARNING: Could not shorten URL", file=sys.stderr)
-            print(url)
-        elif options.rawurl:
-            print(url + "/raw/")
-        else:
-            print(short_url + " -> " + url)
+        print(url)
 
     else:
         sys.exit(1)
@@ -885,7 +750,7 @@ Examples:
         print(
             "install fpaste to local ~/bin dir by running:    mkdir -p ~/bin; curl " +
             url +
-            "raw/ -o ~/bin/fpaste && chmod +x ~/bin/fpaste",
+            "/raw -o ~/bin/fpaste && chmod +x ~/bin/fpaste",
             file=sys.stderr)
 
     sys.exit(0)
