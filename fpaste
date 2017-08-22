@@ -484,7 +484,7 @@ Examples:
   dmesg | %%prog
   (prog1; prog2; prog3) | fpaste
   %%prog --sysinfo -d "my pass" --confirm
-  %%prog -t "debug output" -d "problem with foo" -l python foo.py""" % FPASTE_URL
+  %%prog -t "debug output" -d "my pass" -l python foo.py""" % FPASTE_URL
 
     parser = OptionParser(usage=usage, version='%prog '+VERSION)
     parser.add_option(
