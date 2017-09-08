@@ -28,7 +28,7 @@ import json
 from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
 
 
-VERSION = '0.3.9.0'
+VERSION = '0.3.9.1'
 USER_AGENT = 'fpaste/' + VERSION
 FPASTE_URL = 'https://paste.fedoraproject.org/api/paste'
 
