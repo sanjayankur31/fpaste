@@ -666,6 +666,7 @@ Examples:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE)
         (text, err) = p.communicate()
+        text = text.decode("utf-8")
         if p.returncode != 0:
             if options.debug:
                 print(err, file=sys.stderr)
