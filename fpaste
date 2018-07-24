@@ -276,6 +276,7 @@ def sysinfo(
     sistr = "=== fpaste %s System Information (fpaste --sysinfo) ===\n" % VERSION
     for cmdname, output in si:
         sistr += "* %s:\n" % cmdname
+        print("{}: {}".format(cmdname, output))
         if not output:
             sistr += "     N/A\n\n"
         else:
