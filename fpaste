@@ -216,7 +216,7 @@ def sysinfo(
         ('Kernel buffer tail', '''dmesg | tail'''),
         ('Last few reboots',   '''last -x -n10 reboot runlevel'''),
         ('DNF Repositories',
-         '''dnf -C repolist''',
+         '''dnf repolist''',
          '''ls -l /etc/yum.repos.d''',
          '''grep -v '^#' /etc/yum.conf'''
          ),
