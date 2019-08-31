@@ -1,0 +1,21 @@
+# Leave fields empty to use default values
+
+[server]
+# Currently supported:
+# stikked: https://github.com/claudehohl/Stikked
+# modernpaste (no longer maintained): https://github.com/LINKIWI/modern-paste
+server = "stikked"
+
+# URL of instance
+url = "https://paste.centos.org"
+
+# File with list of sysinfo commands
+commandfile = ""
+
+[user]
+
+# System user if empty
+name = ""
+
+# Pastes are private by default
+private = 1

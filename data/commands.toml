@@ -1,0 +1,117 @@
+# List of commands fpaste runs in toml
+# Please remember to escape sequences when needed.
+# Use triple quotes only when needed.
+# TOML specification: https://github.com/toml-lang/toml.
+
+# Release information
+"OS Release" = [
+    "lsb_release -ds",
+    "cat /etc/*-release | uniq",
+    "cat /etc/issue",
+    "cat /etc/motd"
+]
+
+# Kernel information
+"Kernel" = [
+    "uname -r",
+    "cat /proc/cmdline"
+]
+
+# Curently running DE
+"Desktop(s) Running" = """
+ps -eo comm= | grep -E "(gnome-session|startkde|startactive|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session|mate-session|lxqt-session|cinnamon)" """
+#
+# Installed DEs
+"Desktop(s) Installed" = """ls -m /usr/share/xsessions/ | sed "s/\\.desktop//g" """
+
+# Selinux status
+"SELinux Status" = [ """sestatus""", """/usr/sbin/sestatus""", """getenforce""", """grep -v "^#" /etc/sysconfig/selinux""" ]
+
+# Recorded Selinux errors
+"SELinux Errors" = """selinuxenabled && journalctl --since yesterday |grep avc: | grep -Eo comm="[^ ]+" | sort |uniq -c |sort -rn"""
+
+# CPU information
+"CPU Model" = [
+    """grep "model name" /proc/cpuinfo | awk -F: "{print $2}" | uniq -c | sed -re "s/^ +//" """,
+    """grep "model name" /proc/cpuinfo"""
+]
+
+# 64 bit support check
+"64-bit Support" = """grep -q " lm " /proc/cpuinfo && echo Yes || echo No"""
+
+# Hardware virtualization support
+"Hardware Virtualization Support" = """grep -Eq "(vmx|svm)" /proc/cpuinfo && echo Yes || echo No"""
+
+# Load
+"Load average" = "uptime"
+
+# Memory
+"Memory usage" = ["free -m", "free"]
+
+# CPU Hogs
+"Top 5 CPU hogs" = "ps axuScnh | sort -rnk3 | head -5"
+
+# Memory hogs
+"Top 5 Memory hogs" = "ps axuScnh | sort -rnk4 | head -5"
+
+# Disk space
+"Disk space usage" = [
+    "df -hT",
+    "df -h",
+    "df"
+]
+
+# Block devices
+"Block devices" = [
+    "blkid",
+    "/sbin/blkid"
+]
+
+# PCI devices
+"PCI devices" = [
+    "lspci",
+    "/sbin/lspci"
+]
+
+# USB
+"USB devices" = [
+    "lsusb",
+    "/sbin/lsusb"
+]
+
+# DRM
+"DRM Information" = """journalctl -k -b | grep -o "kernel:.*drm.*$" | cut -d " " -f 2- """
+
+# Xorg
+"Xorg modules" = """grep LoadModule /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log | cut -d \\\\" -f 2 | xargs"""
+
+# GL
+"GL Support" = """glxinfo | grep -E "OpenGL version|OpenGL renderer"""
+
+# X errors
+"Xorg errors" = """grep "^\\[.*(EE)" /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log | cut -d ":" -f 2- """
+
+# Last bits of dmesg
+"Kernel buffer tail" = "dmesg | tail"
+
+# Last 10 reboots
+"Last 10 reboots" = "last -x -n10 reboot runlevel"
+
+# Repositories
+"DNF Repositories" = [
+    "dnf repolist"
+    "ls -l /etc/yum.repos.d",
+    """grep -v "^#" /etc/yum.conf"""
+]
+
+# Extras
+"DNF Extras" = "dnf -C list extras"
+
+# All installed packages
+"Installed packages" = "rpm -qa --nodigest --nosignature | sort"
+
+# Last 20 installed packages
+"Last 20 packages installed" = "rpm -qa --nodigest --nosignature --last | head -20"
+
+# EFI
+"EFI boot manager output" =  "efibootmgr -v"
