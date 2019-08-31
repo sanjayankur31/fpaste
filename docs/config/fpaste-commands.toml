@@ -56,9 +56,8 @@ ps -eo comm= | grep -E "(gnome-session|startkde|startactive|xfce.?-session|fluxb
 
 # Disk space
 "Disk space usage" = [
-    "df -hT",
+    "df -hTi",
     "df -h",
-    "df"
 ]
 
 # Block devices
