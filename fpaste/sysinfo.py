@@ -9,83 +9,105 @@ Author: Ankur Sinha <sanjay DOT ankur AT gmail DOT com>
 """
 
 
-import sys
 import subprocess
+import textwrap
+from version import __version__
+import logging
+from logger import get_module_logger
+
+# Logger for these functions
+logger = get_module_logger("sysinfo", logging.INFO)
 
 
-
-def get_sysinfo(cmdlist):
+def get_sysinfo(cmds):
     """
     Main worker function that runs various commands to gather system
     information.
 
-    :cmdlist: List of diagnostic commands.
+    :cmds: List of diagnostic commands.
     :returns: String with gathered information.
 
     """
-    pass
+    logger.info("Gathering system info")
+    output_string = textwrap.dedent("""\
+    === fpaste {} System Information (fpaste --sysinfo) ===\n
+    """).format(__version__)
 
+    for cmd, cmd_list in cmds.items():
+        output_list = run_cmd(cmd_list)
+        output_string += "* {}:\n".format(cmd)
 
-def sysinfo(
-        show_stderr=False, show_successful_cmds=True, show_failed_cmds=True):
-    """Return commonly requested system info."""
-    # 'ps' output below has been anonymized: -n for uid vs username, and -c for
-    # short processname
-    si = []
-    print("Gathering system info", end=' ', file=sys.stderr)
-    for cmds in cmdlist:
-        cmdname = cmds[0]
-        cmd = ""
-        for cmd in cmds[1:]:
-            sys.stderr.write('.')  # simple progress feedback
-            p = subprocess.Popen(
-                cmd,
-                shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE)
-            try:
-                (out, err) = p.communicate(timeout=300)
-            except subprocess.TimeoutExpired:
-                p.kill()
-                (out, err) = p.communicate()
-            if not p.returncode == 0:
-                if show_stderr:
-                    if err:
-                        print(
-                            "sysinfo Error: the cmd \"%s\" returned %d with stderr: %s" %
-                            (cmd, p.returncode, err), file=sys.stderr)
-                    else:
-                        print(
-                            "sysinfo Error: the cmd \"%s\" returned %d without errors" %
-                            (cmd, p.returncode), file=sys.stderr)
-                    print("Trying next fallback cmd...", file=sys.stderr)
-            if p.returncode == 0 and out:
-                break
-        if out:
-            if show_successful_cmds:
-                si.append(('%s (%s)' % (cmdname, cmd), out))
-            else:
-                si.append(('%s' % cmdname, out))
+        if output_list['status'] == "OK":
+            for output in output_list['commands']:
+                if output['status'] == "OK":
+                    info = output['output']
+                    for line in info.decode("utf-8", "replace").split('\n'):
+                        output_string += "     {}\n".format(line)
         else:
-            if show_failed_cmds:
-                si.append(
-                    ('%s (without results: "%s")' %
-                     (cmdname,
-                      '" AND "'.join(
-                          cmds[
-                              1:])),
-                        out))
+            output_string += "     N/A\n\n"
+
+    return output_string
+
+
+def run_cmd(cmd_list, show_progress=True):
+    """
+    Run command, return output.
+
+    If a list of commands is provided, it runs them in order, only moving to
+    the next in the list if the current one fails.
+
+    :cmd_list: command to run.
+    :show_progress: Boolean, show progress
+    :returns: output from the command
+
+    """
+    # Store output status
+    output_list = {}
+    # Assume at least ne command succeeded
+    output_list['status'] = "OK"
+    # Output from each command if there are multiple
+    output_list['commands'] = []
+    for cmd in cmd_list:
+        output = {}
+        if show_progress:
+            logger.info('Running {}'.format(cmd))
+        p = subprocess.Popen(
+            cmd,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE)
+        try:
+            (out, err) = p.communicate(timeout=120)
+        except subprocess.TimeoutExpired:
+            p.kill()
+            (out, err) = p.communicate()
+        if not p.returncode == 0:
+            output_list['status'] = "Failed"
+            output['status'] = "Failed"
+            if err:
+                output['error'] = err
+                logger.warn(
+                    "Command \"{}\" returned {} with stderr: {}".format(
+                        cmd, p.returncode, err
+                    )
+                )
             else:
-                si.append(('%s' % cmdname, out))
-
-    # return in readable indented format
-    sistr = "=== fpaste %s System Information (fpaste --sysinfo) ===\n" % VERSION
-    for cmdname, output in si:
-        sistr += "* %s:\n" % cmdname
-        if not output:
-            sistr += "     N/A\n\n"
+                logger.warn(
+                    "Command \"{}\" returned {} without errors".format(
+                        cmd, p.returncode
+                    )
+                )
+        if p.returncode == 0 and out:
+            output_list['status'] = "OK"
+            output['status'] = "OK"
+            output['output'] = out
+            logger.debug("{}:\n{}".format(cmd, out))
         else:
-            for line in output.decode("utf-8", "replace").split('\n'):
-                sistr += "     %s\n" % line
+            output_list['status'] = "OK"
+            output['status'] = "OK"
+            output['output'] = b"NA"
+            logger.debug("{}:\n{}".format(cmd, out))
 
-    return sistr
+        output_list['commands'].append(output)
+    # Return the gathered outputs
+    return output_list
