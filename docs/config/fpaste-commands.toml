@@ -2,6 +2,7 @@
 # Please remember to escape sequences when needed.
 # Use triple quotes only when needed.
 # TOML specification: https://github.com/toml-lang/toml.
+# Each value should be a list, even if only one commands is being used.
 
 # Release information
 "OS Release" = [
@@ -18,17 +19,25 @@
 ]
 
 # Curently running DE
-"Desktop(s) Running" = """
-ps -eo comm= | grep -E "(gnome-session|startkde|startactive|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session|mate-session|lxqt-session|cinnamon)" """
+# 'ps' output below has been anonymized: -n for uid vs username, and -c for
+# short processname
+"Desktop(s) Running" = [
+    """ps -eo comm= | grep -E "(gnome-session|startkde|startactive|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session|mate-session|lxqt-session|cinnamon)" """
+]
 #
 # Installed DEs
-"Desktop(s) Installed" = """ls -m /usr/share/xsessions/ | sed "s/\\.desktop//g" """
+"Desktop(s) Installed" = ["""ls -m /usr/share/xsessions/ | sed "s/\\.desktop//g" """]
 
 # Selinux status
-"SELinux Status" = [ """sestatus""", """/usr/sbin/sestatus""", """getenforce""", """grep -v "^#" /etc/sysconfig/selinux""" ]
+"SELinux Status" = [
+    """sestatus""",
+    """/usr/sbin/sestatus""",
+    """getenforce""",
+    """grep -v \"^#\" /etc/sysconfig/selinux """
+]
 
 # Recorded Selinux errors
-"SELinux Errors" = """selinuxenabled && journalctl --since yesterday |grep avc: | grep -Eo comm="[^ ]+" | sort |uniq -c |sort -rn"""
+"SELinux Errors" = ["""selinuxenabled && journalctl --since yesterday |grep avc: | grep -Eo comm=\"[^ ]+\" | sort | uniq -c | sort -rn"""]
 
 # CPU information
 "CPU Model" = [
@@ -37,27 +46,27 @@ ps -eo comm= | grep -E "(gnome-session|startkde|startactive|xfce.?-session|fluxb
 ]
 
 # 64 bit support check
-"64-bit Support" = """grep -q " lm " /proc/cpuinfo && echo Yes || echo No"""
+"64-bit Support" = ["""grep -q " lm " /proc/cpuinfo && echo Yes || echo No"""]
 
 # Hardware virtualization support
-"Hardware Virtualization Support" = """grep -Eq "(vmx|svm)" /proc/cpuinfo && echo Yes || echo No"""
+"Hardware Virtualization Support" = ["""grep -Eq "(vmx|svm)" /proc/cpuinfo && echo Yes || echo No"""]
 
 # Load
-"Load average" = "uptime"
+"Load average" = ["uptime"]
 
 # Memory
 "Memory usage" = ["free -m", "free"]
 
 # CPU Hogs
-"Top 5 CPU hogs" = "ps axuScnh | sort -rnk3 | head -5"
+"Top 5 CPU hogs" = ["ps axuScnh | sort -rnk3 | head -5"]
 
 # Memory hogs
-"Top 5 Memory hogs" = "ps axuScnh | sort -rnk4 | head -5"
+"Top 5 Memory hogs" = ["ps axuScnh | sort -rnk4 | head -5"]
 
 # Disk space
 "Disk space usage" = [
     "df -hTi",
-    "df -h",
+    "df -h"
 ]
 
 # Block devices
@@ -79,38 +88,38 @@ ps -eo comm= | grep -E "(gnome-session|startkde|startactive|xfce.?-session|fluxb
 ]
 
 # DRM
-"DRM Information" = """journalctl -k -b | grep -o "kernel:.*drm.*$" | cut -d " " -f 2- """
+"DRM Information" = ["""journalctl -k -b | grep -o "kernel:.*drm.*$" | cut -d " " -f 2- """]
 
 # Xorg
-"Xorg modules" = """grep LoadModule /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log | cut -d \\\\" -f 2 | xargs"""
+"Xorg modules" = ["""grep LoadModule /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log | cut -d \\\" -f 2 | xargs"""]
 
 # GL
-"GL Support" = """glxinfo | grep -E "OpenGL version|OpenGL renderer"""
+"GL Support" = ["""glxinfo | grep -E "OpenGL version|OpenGL renderer" """]
 
 # X errors
-"Xorg errors" = """grep "^\\[.*(EE)" /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log | cut -d ":" -f 2- """
+"Xorg errors" = ["""grep \"^\\[.*(EE)\" /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log | cut -d \":\" -f 2- """]
 
 # Last bits of dmesg
-"Kernel buffer tail" = "dmesg | tail"
+"Kernel buffer tail" = ["""dmesg | tail """]
 
 # Last 10 reboots
-"Last 10 reboots" = "last -x -n10 reboot runlevel"
+"Last 10 reboots" = ["last -x -n10 reboot runlevel"]
+
+# EFI
+"EFI boot manager output" =  ["efibootmgr -v"]
 
 # Repositories
 "DNF Repositories" = [
-    "dnf repolist"
+    "dnf -C repolist",
     "ls -l /etc/yum.repos.d",
-    """grep -v "^#" /etc/yum.conf"""
+    """ grep -v \"^#\" /etc/yum.conf """
 ]
 
 # Extras
-"DNF Extras" = "dnf -C list extras"
-
-# All installed packages
-"Installed packages" = "rpm -qa --nodigest --nosignature | sort"
+"DNF Extras" = ["dnf -C list extras"]
 
 # Last 20 installed packages
-"Last 20 packages installed" = "rpm -qa --nodigest --nosignature --last | head -20"
+"Last 20 packages installed" = ["rpm -qa --nodigest --nosignature --last | head -20"]
 
-# EFI
-"EFI boot manager output" =  "efibootmgr -v"
+# All installed packages
+"Installed packages" = ["rpm -qa --nodigest --nosignature | sort"]
