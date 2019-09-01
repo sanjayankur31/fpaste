@@ -4,10 +4,12 @@
 # Currently supported:
 # stikked: https://github.com/claudehohl/Stikked
 # modernpaste (no longer maintained): https://github.com/LINKIWI/modern-paste
+# server = "modernpaste"
 server = "stikked"
 
-# URL of instance
-url = "https://paste.centos.org"
+# Submit URL of instance
+# url = "https://paste.centos.org/api/create"
+url = "https://paste.fedoraproject.org/api/paste/submit"
 
 # File with list of sysinfo commands
 commandfile = ""
