@@ -1,3 +1,300 @@
-#!/usr/bin/python3
 
-print("fpaste is awesome!")
+
+from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
+from fpaste.utils import read_config
+
+
+def main():
+    """Main work function."""
+    validClipboardSelectionOpts = ['primary', 'secondary', 'clipboard']
+
+    usage = textwrap.dedent("""\
+Usage: %%prog [OPTION]... [FILE]...
+  send text file(s), stdin, or clipboard to the %s pastebin and return the URL.
+
+Examples:
+  %%prog file1.txt file2.txt
+  dmesg | %%prog
+  (prog1; prog2; prog3) | fpaste
+  %%prog --sysinfo -d "my pass" --confirm
+  %%prog -t "debug output" -d "my pass" -l python foo.py""").format(FPASTE_URL)
+
+    parser = OptionParser(usage=usage, version='%prog '+VERSION)
+    parser.add_option(
+        '',
+        '--debug',
+        dest='debug',
+        help=SUPPRESS_HELP,
+        action="store_true",
+        default=False)
+    parser.add_option('', '--proxy', dest='proxy', help=SUPPRESS_HELP)
+
+    # pastebin-specific options first
+    fpasteOrg_group = OptionGroup(parser, "fpaste.org Options")
+    fpasteOrg_group.add_option(
+        '-t',
+        '--title',
+        dest='title',
+        help='title of paste; defaults to UNTITLED',
+        metavar='"TITLE"')
+    fpasteOrg_group.add_option(
+        '-l',
+        dest='lang',
+        help='language of content for syntax highlighting; default is "%default"; use "list" to show all ' +
+        str(
+            len(validSyntaxOpts)) +
+        ' supported langs',
+        metavar='"LANGUAGE"')
+    fpasteOrg_group.add_option(
+        '-x',
+        dest='expires',
+        help='time before paste is removed; default is %default seconds for unauthenticated posts; valid options: ' +
+        ', '.join(validExpiresOpts),
+        metavar='EXPIRES')
+    fpasteOrg_group.add_option(
+        '-U',
+        '--URL',
+        help='URL of fpaste server; default is %default',
+        dest='url',
+        metavar='"FPASTE URL"')
+    fpasteOrg_group.add_option(
+        '-d',
+        '--password',
+        help='password for paste; default is %default',
+        dest='password',
+        metavar='"PASSWORD"')
+
+    parser.add_option_group(fpasteOrg_group)
+    # other options
+    fpasteProg_group = OptionGroup(parser, "Input/Output Options")
+    fpasteProg_group.add_option(
+        '-i',
+        '--clipin',
+        dest='clipin',
+        help='read paste text from current X clipboard selection [requires: xsel]',
+        action="store_true",
+        default=False)
+    fpasteProg_group.add_option(
+        '-o',
+        '--clipout',
+        dest='clipout',
+        help='save returned paste URL to all available clipboards',
+        action="store_true",
+        default=False)
+    fpasteProg_group.add_option(
+        '',
+        '--input-selection',
+        dest='selection',
+        help='specify which X clipboard to use. valid options: "primary" (default; middle-mouse-button paste), "secondary" (uncommon), or "clipboard" (ctrl-v paste)',
+        metavar='CLIP')
+    fpasteProg_group.add_option(
+        '',
+        '--fullpath',
+        dest='fullpath',
+        help='use pathname VS basename for file description(s)',
+        action="store_true",
+        default=False)
+    fpasteProg_group.add_option(
+        '',
+        '--pasteself',
+        dest='pasteself',
+        help='paste this script itself',
+        action="store_true",
+        default=False)
+    fpasteProg_group.add_option(
+        '',
+        '--sysinfo',
+        dest='sysinfo',
+        help='paste system information',
+        action="store_true",
+        default=False)
+    fpasteProg_group.add_option(
+        '',
+        '--printonly',
+        dest='printonly',
+        help='print paste, but do not send',
+        action="store_true",
+        default=False)
+    fpasteProg_group.add_option(
+        '',
+        '--confirm',
+        dest='confirm',
+        help='print paste, and prompt for confirmation before sending',
+        action="store_true",
+        default=False)
+    parser.add_option_group(fpasteProg_group)
+
+# Let default be anonymous.
+#    p = subprocess.Popen('whoami', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+#    (out, err) = p.communicate ()
+#    if p.returncode == 0 and out:
+#        user = out[0:-1]
+#    else:
+#        print >> sys.stderr, "WARNING Could not run whoami. Posting anonymously."
+
+    parser.set_defaults(
+        lang='text',
+        expires='604800',
+        selection='primary',
+        password=None,
+        url=FPASTE_URL)
+    (options, args) = parser.parse_args()
+
+    # Check for trailing slash
+    if options.url[-1] != '/':
+        options.url = options.url + '/'
+
+    if options.lang.lower() == 'list':
+        print('Valid language syntax options:')
+        for opt in validSyntaxOpts:
+            print(opt)
+        sys.exit(0)
+    if options.clipin:
+        if not os.access('/usr/bin/xsel', os.X_OK):
+            # TODO: try falling back to xclip or dbus
+            parser.error(
+                'OOPS - the clipboard options currently depend on "/usr/bin/xsel", which does not appear to be installed')
+    if options.clipin and args:
+        parser.error(
+            "Sending both clipboard contents AND files is not supported. Use -i OR filename(s)")
+    for optk, optv, opts in [('language', options.lang, validSyntaxOpts), ('expires', options.expires, validExpiresOpts), ('clipboard selection', options.selection, validClipboardSelectionOpts)]:
+        if optv not in opts:
+            parser.error(
+                "'%s' is not a valid %s option.\n\tVALID OPTIONS: %s" %
+                (optv, optk, ', '.join(opts)))
+
+    fileargs = args
+    if options.fullpath:
+        fileargs = [os.path.abspath(x) for x in args]
+    else:
+        # remove potentially non-anonymous path info from file path
+        # descriptions
+        fileargs = [os.path.basename(x) for x in args]
+
+    # guess lang for some common file extensions, if all file exts similar,
+    # and lang not changed from default
+    if options.lang == 'text':
+        all_exts_similar = False
+        ext_prev = ""
+        for i in range(0, len(args)):
+            all_exts_similar = True
+            ext = os.path.splitext(args[i])[1].lstrip(os.extsep)
+            if i > 0 and ext != ext_prev:
+                all_exts_similar = False
+                break
+            ext_prev = ext
+        if all_exts_similar and ext in list(ext2lang_map.keys()):
+            options.lang = ext2lang_map[ext]
+
+    # get input from mutually exclusive sources, though they *could* be
+    # combined
+    text = ""
+    if options.clipin:
+        xselcmd = 'xsel -o --%s' % options.selection
+        # text = os.popen(xselcmd).read()
+        p = subprocess.Popen(
+            xselcmd,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE)
+        (text, err) = p.communicate()
+        text = text.decode("utf-8", "replace")
+        if p.returncode != 0:
+            if options.debug:
+                print(err, file=sys.stderr)
+            parser.error(
+                "'xsel' failure. this usually means you're not running X")
+        if not text:
+            parser.error("%s clipboard is empty" % options.selection)
+    elif options.pasteself:
+        text = open(sys.argv[0]).read()
+        options.lang = 'python'
+    elif options.sysinfo:
+        text = sysinfo(options.debug)
+    elif not args:   # read from stdin if no file args supplied
+        try:
+            input_text = sys.stdin.buffer.read()
+            text += input_text.decode("utf-8", "replace")
+        except KeyboardInterrupt:
+            print(
+                "\nUSAGE REMINDER:\n   fpaste waits for input when run without file arguments.\n   Paste your text, then press <Ctrl-D> on a new line to upload.\n   Try `fpaste --help' for more information.\nExiting...",
+                file=sys.stderr)
+            sys.exit(1)
+    else:
+        for i, f in enumerate(args):
+            if not os.access(f, os.R_OK):
+                parser.error("file '%s' is not readable" % f)
+            if (len(args) > 1):     # separate multiple files with header
+                text += '#' * 78 + '\n'
+                text += '### file %d of %d: %s\n' % (i+1,
+                                                     len(args),
+                                                     fileargs[i])
+                text += '#' * 78 + '\n'
+            text += open(f).read()
+    if options.debug:
+        print('lang: "%s"' % options.lang)
+        print('text (%d): "%s ..."' % (len(text), text[:80]))
+
+    if options.printonly or options.confirm:
+        try:
+            if is_text(text):
+                # when piped to less, sometimes fails with [Errno 32] Broken
+                # pipe
+                print(text)
+            else:
+                print("DATA")
+        except IOError:
+            pass
+    if options.printonly:   # print only what would be sent, and exit
+        sys.exit(0)
+    elif options.confirm:   # print what would be sent, and ask for permission
+        if not confirm("OK to send?"):
+            sys.exit(1)
+
+    url = paste(text, options)
+    if url:
+        # Try to save URL in clipboard, and warn but don't throw error
+        if options.clipout:
+            if not os.access('/usr/bin/xsel', os.X_OK):
+                print(
+                    'OOPS - the clipboard options currently depend on "/usr/bin/xsel", which does not appear to be installed',
+                    file=sys.stderr)
+            else:
+                # Copy the url in all the valid clipboard options
+                for selection in validClipboardSelectionOpts:
+                    xselcmd = 'xsel -i --%s' % selection
+                    p = subprocess.Popen(
+                        xselcmd,
+                        shell=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        stdin=subprocess.PIPE)
+                    (out, err) = p.communicate(input=url.encode('utf-8'))
+                    if p.returncode != 0:
+                        if options.debug:
+                            print(err, file=sys.stderr)
+                        print(
+                            "WARNING: URL not saved to %s" % selection,
+                            file=sys.stderr)
+
+        print(url)
+
+    else:
+        sys.exit(1)
+
+    if options.pasteself:
+        print(
+            "install fpaste to local ~/bin dir by running:    mkdir -p ~/bin; curl " +
+            url +
+            "/raw -o ~/bin/fpaste && chmod +x ~/bin/fpaste",
+            file=sys.stderr)
+
+    sys.exit(0)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\ninterrupted.")
+        sys.exit(1)
