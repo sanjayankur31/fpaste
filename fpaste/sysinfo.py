@@ -16,7 +16,7 @@ import logging
 from logger import get_module_logger
 
 # Logger for these functions
-logger = get_module_logger("sysinfo", logging.INFO)
+lgr = get_module_logger("sysinfo", logging.INFO)
 
 
 def get_sysinfo(cmds):
@@ -28,7 +28,7 @@ def get_sysinfo(cmds):
     :returns: String with gathered information.
 
     """
-    logger.info("Gathering system info")
+    lgr.info("Gathering system info")
     output_string = textwrap.dedent("""\
     === fpaste {} System Information (fpaste --sysinfo) ===\n
     """).format(__version__)
@@ -70,7 +70,7 @@ def run_cmd(cmd_list, show_progress=True):
     for cmd in cmd_list:
         output = {}
         if show_progress:
-            logger.info('Running {}'.format(cmd))
+            lgr.info('Running {}'.format(cmd))
         p = subprocess.Popen(
             cmd,
             shell=True,
@@ -86,13 +86,13 @@ def run_cmd(cmd_list, show_progress=True):
             output['status'] = "Failed"
             if err:
                 output['error'] = err
-                logger.warn(
+                lgr.warn(
                     "Command \"{}\" returned {} with stderr: {}".format(
                         cmd, p.returncode, err
                     )
                 )
             else:
-                logger.warn(
+                lgr.warn(
                     "Command \"{}\" returned {} without errors".format(
                         cmd, p.returncode
                     )
@@ -101,12 +101,12 @@ def run_cmd(cmd_list, show_progress=True):
             output_list['status'] = "OK"
             output['status'] = "OK"
             output['output'] = out
-            logger.debug("{}:\n{}".format(cmd, out))
+            lgr.debug("{}:\n{}".format(cmd, out))
         else:
             output_list['status'] = "OK"
             output['status'] = "OK"
             output['output'] = b"NA"
-            logger.debug("{}:\n{}".format(cmd, out))
+            lgr.debug("{}:\n{}".format(cmd, out))
 
         output_list['commands'].append(output)
     # Return the gathered outputs

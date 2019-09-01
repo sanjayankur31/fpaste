@@ -14,13 +14,13 @@ from logger import get_module_logger
 
 
 # Logger for these functions
-logger = get_module_logger("stikked", logging.INFO)
+lgr = get_module_logger("stikked", logging.INFO)
 
 
 def paste(text, options):
     """Send text to paste server and return the URL."""
     if not text:
-        logger.warn("No text to send.")
+        lgr.warn("No text to send.")
         return False
 
 
