@@ -25,7 +25,7 @@ def get_module_logger(module_name="fpaste", logging_level=logging.DEBUG):
     handler = logging.StreamHandler()
     handler.setLevel(logging_level)
     formatter = logging.Formatter(
-        '%(levelname)s - %(message)s')
+        '%(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
     lgr.addHandler(handler)
 
