@@ -4,8 +4,8 @@
 # Currently supported:
 # stikked: https://github.com/claudehohl/Stikked
 # modernpaste (no longer maintained): https://github.com/LINKIWI/modern-paste
-# server = "modernpaste"
-server = "stikked"
+type = "modernpaste"
+# type = "stikked"
 
 # Submit URL of instance
 # url = "https://paste.centos.org/api/create"
