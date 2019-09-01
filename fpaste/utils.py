@@ -19,11 +19,13 @@
 import os
 import sys
 import textwrap
+import toml
+from toml import TomlDecodeError
 import logging
 from logger import get_module_logger
 
 # Logger for these functions
-logger = get_module_logger("utils", logging.INFO)
+lgr = get_module_logger("utils", logging.INFO)
 
 
 def is_text(text, maxCheck=100, pctPrintable=0.75):
@@ -64,7 +66,7 @@ def confirm(prompt="OK?"):
             sys.stdin = open(mytty)
             ans = input()
         except:
-            logger.error(textwrap.dedent("""
+            lgr.error(textwrap.dedent("""
                 could not rebind sys.stdin to {} after sys.stdin EOF
                 """).format(mytty))
             return False
@@ -98,3 +100,54 @@ def summarize_text(text):
     # print >> sys.stderr, str(len(tsum)) + ": " + tsum
 
     return tsum
+
+
+def read_config(config_file=None):
+    """Load the config file.
+
+    :config_file: path to config file.
+    :returns: TODO
+
+    """
+    config = {}
+    fpaste_config_file = None
+    # If the user specified config file exists, use that
+    if config_file:
+        if os.path.isfile(config_file):
+            fpaste_config_file = config_file
+    else:
+        # Try the default locations in order
+        # First the user config dir
+        system_config_file = os.path.join('/etc', "fpaste",
+                                          "fedora-config.toml")
+
+        xdg_config_dir = None
+        # Not always defined. WTH
+        if 'XDG_CONFIG_DIR' in os.environ:
+            xdg_config_dir = os.environ['XDG_CONFIG_DIR']
+        else:
+            # This environment variable must be defined
+            home_dir = os.environ['HOME']
+            xdg_config_dir = os.path.join(home_dir, '.config')
+
+        user_config = os.path.join(
+            xdg_config_dir, "fpaste", "fedora-config.toml"
+        )
+
+        if os.path.isfile(user_config):
+            fpaste_config_file = user_config
+        elif os.path.isfile(system_config_file):
+            fpaste_config_file = system_config_file
+        else:
+            lgr.error("No config file found. Exiting.")
+            return False
+
+    # Read what we have
+    lgr.debug("Using {}".format(fpaste_config_file))
+    try:
+        config = toml.load(fpaste_config_file)
+    except TomlDecodeError as e:
+        lgr.error("Unable to load file {}: ".format(
+            fpaste_config_file, e))
+        return False
+    return config
