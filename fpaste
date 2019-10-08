@@ -483,8 +483,8 @@ Examples:
   %%prog file1.txt file2.txt
   dmesg | %%prog
   (prog1; prog2; prog3) | fpaste
-  %%prog --sysinfo -d "my pass" --confirm
-  %%prog -t "debug output" -d "my pass" -l python foo.py""" % FPASTE_URL
+  %%prog --sysinfo --confirm
+  %%prog -t "debug output" -l python foo.py""" % FPASTE_URL
 
     parser = OptionParser(usage=usage, version='%prog '+VERSION)
     parser.add_option(
@@ -518,18 +518,6 @@ Examples:
         help='time before paste is removed; default is %default seconds for unauthenticated posts; valid options: ' +
         ', '.join(validExpiresOpts),
         metavar='EXPIRES')
-    fpasteOrg_group.add_option(
-        '-U',
-        '--URL',
-        help='URL of fpaste server; default is %default',
-        dest='url',
-        metavar='"FPASTE URL"')
-    fpasteOrg_group.add_option(
-        '-d',
-        '--password',
-        help='password for paste; default is %default',
-        dest='password',
-        metavar='"PASSWORD"')
 
     parser.add_option_group(fpasteOrg_group)
     # other options
