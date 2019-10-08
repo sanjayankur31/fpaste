@@ -310,7 +310,7 @@ def summarize_text(text):
 
 def main():
     """Main work function."""
-    validExpiresOpts = ['1800', '21600', '86400', '604800', '2592000']
+    validExpiresOpts = ['1800', '21600', '86400']
     validSyntaxOpts = [
         "apl",
         "asn.1",
