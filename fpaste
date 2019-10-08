@@ -94,8 +94,10 @@ def paste(text, options):
     # we'll truncate the input here, until the server decides to truncate
     # instead of die
     data = urllib.parse.urlencode(
-        {'language': options.lang, 'text': text,
+        {'language': options.lang,
+         'text': text,
          'title': options.title,
+         'name': options.author,
          'expiry_time': int(options.expires) + int(time.time()),
          })
     pasteSizeKiB = len(data)/1024.0
@@ -504,6 +506,12 @@ Examples:
         dest='title',
         help='title of paste; defaults to UNTITLED',
         metavar='"TITLE"')
+    fpasteOrg_group.add_option(
+        '-a',
+        '--author',
+        dest='author',
+        help='author name; empty by default',
+        metavar='"AUTHOR"')
     fpasteOrg_group.add_option(
         '-l',
         dest='lang',
