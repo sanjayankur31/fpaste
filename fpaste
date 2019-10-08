@@ -98,6 +98,7 @@ def paste(text, options):
          'text': text,
          'title': options.title,
          'name': options.author,
+         'private': options.private,
          'expiry_time': int(options.expires) + int(time.time()),
          })
     pasteSizeKiB = len(data)/1024.0
@@ -512,6 +513,12 @@ Examples:
         dest='author',
         help='author name; empty by default',
         metavar='"AUTHOR"')
+    fpasteOrg_group.add_option(
+        '-r',
+        '--private',
+        dest='private',
+        help='make paste private; defaults to 1',
+        metavar='PRIVATE')
     fpasteOrg_group.add_option(
         '-l',
         dest='lang',
