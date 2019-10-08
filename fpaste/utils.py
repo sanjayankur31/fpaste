@@ -27,6 +27,10 @@ from logger import get_module_logger
 # Logger for these functions
 lgr = get_module_logger("utils", logging.INFO)
 
+# Globals
+# Clip board selection options
+selectionClipboards = ['primary', 'secondary', 'clipboard']
+
 
 def is_text(text, maxCheck=100, pctPrintable=0.75):
     """
@@ -106,7 +110,7 @@ def read_config(config_file=None):
     """Load the config file.
 
     :config_file: path to config file.
-    :returns: TODO
+    :returns: config file in JSON
 
     """
     config = {}

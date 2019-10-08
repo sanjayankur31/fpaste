@@ -11,7 +11,13 @@ Author: Ankur Sinha <sanjay DOT ankur AT gmail DOT com>
 
 import logging
 from logger import get_module_logger
+import textwrap
+from fpaste.utils import is_text, confirm, USER_AGENT
+import urllib
+import json
 
+
+APIKEY = "5uZ30dTZE1a5V0WYhNwcMddBRDpk6UzuzMu-APKM38iMHacxdA0n4vCqA34avNyt"
 
 # Logger for these functions
 lgr = get_module_logger("stikked", logging.INFO)
@@ -22,6 +28,58 @@ def paste(text, options):
     if not text:
         lgr.warn("No text to send.")
         return False
+
+    pasteSizeKiB = len(text)/1024.0
+
+    # 512KiB appears to be the current hard limit (20110404); old limit was
+    # 16MiB
+    if pasteSizeKiB >= 512:
+        lgr.warn(
+            textwrap.dedent("""\
+            Your paste size ({:.1}KiB) is very large and may be rejected by the
+            server. A pastebin is NOT a file hosting
+            service!""").format(pasteSizeKiB))
+    # verify that it's most likely *non-binary* data being sent.
+    if not is_text(text):
+        lgr.warn(
+            "Your paste looks a lot like binary data instead of text."
+        )
+        if not confirm("Send binary data anyway?"):
+            return False
+
+    req = urllib.request.Request(
+        url=options['url'] + '?apikey={}'.format(APIKEY),
+        data=text,
+        headers={
+            'User-agent': USER_AGENT
+        })
+    if options.proxy:
+        if options.debug:
+            lgr.info("Using proxy: {}".format(options.proxy))
+        req.set_proxy(options.proxy, 'http')
+
+    lgr.info("Uploading ({:.1}KiB)...".format(pasteSizeKiB))
+    try:
+        f = urllib.request.urlopen(req)
+    except urllib.error.URLError as e:
+        if hasattr(e, 'reason'):
+            lgr.error("Error Uploading: {}".format(e.reason))
+        elif hasattr(e, 'code'):
+            lgr.error("Server Error: {} - {}".format(e.code, e.msg))
+            if options.debug:
+                lgr.debug(f.read())
+        return False
+
+    try:
+        response = json.loads(f.read().decode("utf-8", "replace"))
+    except ValueError as e:
+        lgr.error(
+            "Server did not return a correct JSON response: {}".format(e)
+        )
+        return False
+
+    url = response['url']
+    return url
 
 
 options = {
@@ -266,7 +324,7 @@ options = {
         "z80",
         "zxbasic"
     ],
-    "validExpiresOpts": ['1800', '21600', '86400', '604800', '2592000'],
+    "validExpiresOpts": ['1800', '21600', '86400'],
     "ext2lang_map": {
         'sh': 'bash',
         'bash': 'bash',
