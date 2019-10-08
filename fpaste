@@ -28,9 +28,10 @@ import json
 from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
 
 
-VERSION = '0.3.9.2'
+VERSION = '0.3.9.3'
 USER_AGENT = 'fpaste/' + VERSION
-FPASTE_URL = 'https://paste.fedoraproject.org/api/paste'
+APIKEY = urllib.parse.urlencode({'apikey': '5uZ30dTZE1a5V0WYhNwcMddBRDpk6UzuzMu-APKM38iMHacxdA0n4vCqA34avNyt'})
+FPASTE_URL = 'https://paste.centos.org/api/create?' + APIKEY
 
 
 def is_text(text, maxCheck=100, pctPrintable=0.75):
@@ -92,11 +93,11 @@ def paste(text, options):
     # if sent data exceeds maxlength, server dies without error returned, so,
     # we'll truncate the input here, until the server decides to truncate
     # instead of die
-    data = json.dumps(
-        {'language': options.lang, 'contents': text,
+    data = urllib.parse.urlencode(
+        {'language': options.lang, 'text': text,
          'title': options.title,
          'expiry_time': int(options.expires) + int(time.time()),
-         'password': options.password}).encode('utf8')
+         })
     pasteSizeKiB = len(data)/1024.0
 
     # 512KiB appears to be the current hard limit (20110404); old limit was
@@ -115,11 +116,10 @@ def paste(text, options):
             return False
 
     req = urllib.request.Request(
-        url=options.url + '/submit',
-        data=data,
+        url=options.url,
+        data=data.encode('ascii'),
         headers={
-            'User-agent': USER_AGENT,
-            'Content-Type': 'application/json'})
+            'User-agent': USER_AGENT})
     if options.proxy:
         if options.debug:
             print("Using proxy: %s" % options.proxy, file=sys.stderr)
@@ -138,15 +138,14 @@ def paste(text, options):
         return False
 
     try:
-        response = json.loads(f.read().decode("utf-8", "replace"))
+        response = f.read().decode("utf-8", "replace")
     except ValueError as e:
         print(
-            "Error: Server did not return a correct JSON response",
+            "Error: Server did not return a correct response",
             file=sys.stderr)
         return False
 
-    url = response['url']
-    return url
+    return response
 
 
 def sysinfo(
@@ -602,15 +601,11 @@ Examples:
 
     parser.set_defaults(
         lang='text',
-        expires='604800',
+        expires='86400',
         selection='primary',
         password=None,
         url=FPASTE_URL)
     (options, args) = parser.parse_args()
-
-    # Check for trailing slash
-    if options.url[-1] != '/':
-        options.url = options.url + '/'
 
     if options.lang.lower() == 'list':
         print('Valid language syntax options:')
