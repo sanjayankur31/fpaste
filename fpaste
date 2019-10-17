@@ -29,9 +29,10 @@ from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
 from subprocess import CalledProcessError
 
 
-VERSION = '0.4.0.0'
+VERSION = '0.4.0.1'
 USER_AGENT = 'fpaste/' + VERSION
 APIKEY = urllib.parse.urlencode({'apikey': '5uZ30dTZE1a5V0WYhNwcMddBRDpk6UzuzMu-APKM38iMHacxdA0n4vCqA34avNyt'})
+SERVER_URL = 'https://paste.centos.org'
 FPASTE_URL = 'https://paste.centos.org/api/create?' + APIKEY
 
 
@@ -596,14 +597,14 @@ def main():
 
     usage = """\
 Usage: %%prog [OPTION]... [FILE]...
-  send text file(s), stdin, or clipboard to the %s pastebin and return the URL.
+  send text file(s), stdin, or clipboard to the Fedora community pastebin at %s and return the URL.
 
 Examples:
   %%prog file1.txt file2.txt
   dmesg | %%prog
   (prog1; prog2; prog3) | fpaste
   %%prog --sysinfo --confirm
-  %%prog -t "debug output" -l python foo.py""" % FPASTE_URL
+  %%prog -t "debug output" -l python foo.py""" % SERVER_URL
 
     parser = OptionParser(usage=usage, version='%prog '+VERSION)
     parser.add_option(
