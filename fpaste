@@ -199,7 +199,7 @@ def sysinfo(
         ('Top 5 Memory hogs',  '''ps axuScnh | sort -rnk4 | head -5'''),
         ('Disk space usage',   '''df -hT''', 'df -h', 'df'),
         ('Block devices',      '''blkid''', '''/sbin/blkid'''),
-        ('PCI devices',        '''lspci''', '''/sbin/lspci'''),
+        ('PCI devices',        '''lspci -nn''', '''/sbin/lspci -nn''', '''lspci''', '''/sbin/lspci'''),
         ('USB devices',        '''lsusb''', '''/sbin/lsusb'''),
         ('DRM Information',
          '''journalctl -k -b | grep -o 'kernel:.*drm.*$' | cut -d ' ' -f 2- '''
