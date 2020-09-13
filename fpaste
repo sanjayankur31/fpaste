@@ -23,8 +23,6 @@ import urllib.request
 import urllib.parse
 import urllib.error
 import subprocess
-import time
-import json
 from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
 from subprocess import CalledProcessError
 
@@ -35,6 +33,95 @@ APIKEY = urllib.parse.urlencode({'apikey': '5uZ30dTZE1a5V0WYhNwcMddBRDpk6UzuzMu-
 SERVER_URL = 'https://paste.centos.org'
 FPASTE_URL = 'https://paste.centos.org/api/create?' + APIKEY
 
+# cmd name, command, command2 fallback, command3 fallback, ...
+sysinfo_cmdlist = [
+    ('OS Release',
+     '''lsb_release -ds''',
+     '''cat /etc/*-release | uniq''',
+     'cat /etc/issue',
+     'cat /etc/motd'
+     ),
+    ('Kernel',             '''uname -r ; cat /proc/cmdline'''
+     ),
+    ('Desktop(s) Running',
+     '''ps -eo comm= | grep -E '(gnome-session|startkde|startactive|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session|mate-session|lxqt-session|cinnamon)' '''
+     ),
+    ('Desktop(s) Installed',
+     '''ls -m /usr/share/xsessions/ | sed 's/\.desktop//g' '''
+     ),
+    ('SELinux Status',
+     '''sestatus''',
+     '''/usr/sbin/sestatus''',
+     '''getenforce''',
+     '''grep -v '^#' /etc/sysconfig/selinux'''
+     ),
+    ('SELinux Errors',
+     '''selinuxenabled && journalctl --since yesterday |grep avc: | grep -Eo comm="[^ ]+" | sort |uniq -c |sort -rn'''
+     ),
+    ('CPU Model',
+     '''grep 'model name' /proc/cpuinfo | awk -F: '{print $2}' | uniq -c |
+     sed -re 's/^ +//' ''',
+     '''grep 'model name' /proc/cpuinfo'''
+     ),
+    ('64-bit Support',
+     '''grep -q ' lm ' /proc/cpuinfo && echo Yes || echo No'''
+     ),
+    ('Hardware Virtualization Support',
+     '''grep -Eq '(vmx|svm)' /proc/cpuinfo && echo Yes || echo No'''
+     ),
+    ('Load average',       '''uptime'''),
+    ('Memory usage',       '''free -m''', 'free'),
+    ('Top 5 CPU hogs',     '''ps axuScnh | awk '$2!=''' +
+     str(os.getpid()) +
+        '''' | sort -rnk3 | head -5'''),
+    ('Top 5 Memory hogs',  '''ps axuScnh | sort -rnk4 | head -5'''),
+    ('Disk space usage',   '''df -hT''', 'df -h', 'df'),
+    ('Block devices',      '''blkid''', '''/sbin/blkid'''),
+    ('PCI devices',        '''lspci -nn''', '''/sbin/lspci -nn''', '''lspci''', '''/sbin/lspci'''),
+    ('USB devices',        '''lsusb''', '''/sbin/lsusb'''),
+    ('DRM Information',
+     '''journalctl -k -b | grep -o 'kernel:.*drm.*$' | cut -d ' ' -f 2- '''
+     ),
+    ('Xorg modules',
+     '''grep LoadModule /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log | cut -d \\" -f 2 | xargs'''
+     ),
+    ('GL Support',
+     '''glxinfo | grep -E "OpenGL version|OpenGL renderer"'''
+     ),
+    ('Xorg errors',
+     '''grep '^\[.*(EE)' /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log | cut -d ':' -f 2- '''
+     ),
+    ('Kernel buffer tail', '''dmesg | tail'''),
+    ('Last few reboots',   '''last -x -n10 reboot runlevel'''),
+    ('DNF Repositories',
+     '''dnf repolist''',
+     '''ls -l /etc/yum.repos.d''',
+     '''grep -v '^#' /etc/yum.conf'''
+     ),
+    ('DNF Extras',         '''dnf -C list extras'''),
+    ('Last 20 packages installed', '''rpm -qa --nodigest --nosignature --last | head -20'''),
+    # ('Installed packages', '''rpm -qa --nodigest --nosignature | sort''', '''dpkg -l''') ]
+    ('EFI boot manager output', '''efibootmgr -v''')]
+
+btrfs_cmdlist = [
+    ('OS Release',
+     '''lsb_release -ds''',
+     '''cat /etc/*-release | uniq''',
+     'cat /etc/issue',
+     'cat /etc/motd'
+     ),
+    ('Kernel', '''uname -r ; cat /proc/cmdline'''
+     ),
+    ('btrfs-progs', '''rpm -q btrfs-progs'''
+     ),
+    ('btrfs mounts', '''grep btrfs /proc/mounts'''
+     ),
+    ('block devices', '''lsblk -ft'''
+     ),
+    ('Kernel messages', '''journalctl -o short-monotonic --no-hostname -k'''
+     ),
+    ('btrfs usage',   '''btrfs filesystem usage -T /'''),
+]
 
 def is_text(text, maxCheck=100, pctPrintable=0.75):
     """
@@ -153,81 +240,28 @@ def paste(text, options):
     return response
 
 
-def sysinfo(
-        show_stderr=False, show_successful_cmds=True, show_failed_cmds=True):
+def btrfsinfo(show_stderr=False, show_successful_cmds=True,
+            show_failed_cmds=True):
+    """
+    Get btrfs related info.
+    """
+    return getinfo(btrfs_cmdlist)
+
+
+def sysinfo(show_stderr=False, show_successful_cmds=True,
+            show_failed_cmds=True):
+    """
+    Get general system related info.
+    """
+    return getinfo(sysinfo_cmdlist)
+
+
+def getinfo(cmdlist, show_stderr=False, show_successful_cmds=True,
+            show_failed_cmds=True):
     """Return commonly requested system info."""
     # 'ps' output below has been anonymized: -n for uid vs username, and -c for
     # short processname
 
-    # cmd name, command, command2 fallback, command3 fallback, ...
-    cmdlist = [
-        ('OS Release',
-         '''lsb_release -ds''',
-         '''cat /etc/*-release | uniq''',
-         'cat /etc/issue',
-         'cat /etc/motd'
-         ),
-        ('Kernel',             '''uname -r ; cat /proc/cmdline'''
-         ),
-        ('Desktop(s) Running',
-         '''ps -eo comm= | grep -E '(gnome-session|startkde|startactive|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session|mate-session|lxqt-session|cinnamon)' '''
-         ),
-        ('Desktop(s) Installed',
-         '''ls -m /usr/share/xsessions/ | sed 's/\.desktop//g' '''
-         ),
-        ('SELinux Status',
-         '''sestatus''',
-         '''/usr/sbin/sestatus''',
-         '''getenforce''',
-         '''grep -v '^#' /etc/sysconfig/selinux'''
-         ),
-        ('SELinux Errors',
-         '''selinuxenabled && journalctl --since yesterday |grep avc: | grep -Eo comm="[^ ]+" | sort |uniq -c |sort -rn'''
-         ),
-        ('CPU Model',
-         '''grep 'model name' /proc/cpuinfo | awk -F: '{print $2}' | uniq -c |
-         sed -re 's/^ +//' ''',
-         '''grep 'model name' /proc/cpuinfo'''
-         ),
-        ('64-bit Support',
-         '''grep -q ' lm ' /proc/cpuinfo && echo Yes || echo No'''
-         ),
-        ('Hardware Virtualization Support',
-         '''grep -Eq '(vmx|svm)' /proc/cpuinfo && echo Yes || echo No'''
-         ),
-        ('Load average',       '''uptime'''),
-        ('Memory usage',       '''free -m''', 'free'),
-        ('Top 5 CPU hogs',     '''ps axuScnh | awk '$2!=''' +
-         str(os.getpid()) +
-            '''' | sort -rnk3 | head -5'''),
-        ('Top 5 Memory hogs',  '''ps axuScnh | sort -rnk4 | head -5'''),
-        ('Disk space usage',   '''df -hT''', 'df -h', 'df'),
-        ('Block devices',      '''blkid''', '''/sbin/blkid'''),
-        ('PCI devices',        '''lspci -nn''', '''/sbin/lspci -nn''', '''lspci''', '''/sbin/lspci'''),
-        ('USB devices',        '''lsusb''', '''/sbin/lsusb'''),
-        ('DRM Information',
-         '''journalctl -k -b | grep -o 'kernel:.*drm.*$' | cut -d ' ' -f 2- '''
-         ),
-        ('Xorg modules',
-         '''grep LoadModule /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log | cut -d \\" -f 2 | xargs'''
-         ),
-        ('GL Support',
-         '''glxinfo | grep -E "OpenGL version|OpenGL renderer"'''
-         ),
-        ('Xorg errors',
-         '''grep '^\[.*(EE)' /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log | cut -d ':' -f 2- '''
-         ),
-        ('Kernel buffer tail', '''dmesg | tail'''),
-        ('Last few reboots',   '''last -x -n10 reboot runlevel'''),
-        ('DNF Repositories',
-         '''dnf repolist''',
-         '''ls -l /etc/yum.repos.d''',
-         '''grep -v '^#' /etc/yum.conf'''
-         ),
-        ('DNF Extras',         '''dnf -C list extras'''),
-        ('Last 20 packages installed', '''rpm -qa --nodigest --nosignature --last | head -20'''),
-        # ('Installed packages', '''rpm -qa --nodigest --nosignature | sort''', '''dpkg -l''') ]
-        ('EFI boot manager output', '''efibootmgr -v''')]
     si = []
 
     print("Gathering system info", end=' ', file=sys.stderr)
@@ -277,7 +311,7 @@ def sysinfo(
                 si.append(('%s' % cmdname, out))
 
     # return in readable indented format
-    sistr = "=== fpaste %s System Information (fpaste --sysinfo) ===\n" % VERSION
+    sistr = "=== fpaste %s System Information ===\n" % VERSION
     for cmdname, output in si:
         sistr += "* %s:\n" % cmdname
         if not output:
@@ -700,6 +734,13 @@ Examples:
         default=False)
     fpasteProg_group.add_option(
         '',
+        '--btrfsinfo',
+        dest='btrfsinfo',
+        help='paste btrfs related system information',
+        action="store_true",
+        default=False)
+    fpasteProg_group.add_option(
+        '',
         '--printonly',
         dest='printonly',
         help='print paste, but do not send',
@@ -820,6 +861,8 @@ Examples:
         options.lang = 'python'
     elif options.sysinfo:
         text = sysinfo(options.debug)
+    elif options.btrfsinfo:
+        text = btrfsinfo(options.debug)
     elif not args:   # read from stdin if no file args supplied
         try:
             input_text = sys.stdin.buffer.read()
