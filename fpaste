@@ -104,12 +104,6 @@ sysinfo_cmdlist = [
     ('EFI boot manager output', '''efibootmgr -v''')]
 
 btrfs_cmdlist = [
-    ('OS Release',
-     '''lsb_release -ds''',
-     '''cat /etc/*-release | uniq''',
-     'cat /etc/issue',
-     'cat /etc/motd'
-     ),
     ('Kernel', '''uname -r ; cat /proc/cmdline'''
      ),
     ('btrfs-progs', '''rpm -q btrfs-progs'''
