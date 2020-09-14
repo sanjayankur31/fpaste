@@ -1,4 +1,8 @@
 fpaste ChangeLog
+0.4.1.0 - 20200914
+
+ *) Add --btrfsinfo command
+
 0.4.0.1 - 20191017
 
  *) Improve help message
