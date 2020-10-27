@@ -1,4 +1,8 @@
 fpaste ChangeLog
+0.4.1.1 - 20201027
+
+*) Improve btrfs options (Chris Murphy)
+
 0.4.1.0 - 20200914
 
  *) Add --btrfsinfo command
