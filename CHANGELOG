@@ -1,4 +1,10 @@
 fpaste ChangeLog
+
+0.4.2.0 - development
+
+*) Add lxdm-session to desktop detection command (https://bugzilla.redhat.com/show_bug.cgi?id=1960569)
+*) Various code improvements
+
 0.4.1.1 - 20201027
 
 *) Improve btrfs options (Chris Murphy)
