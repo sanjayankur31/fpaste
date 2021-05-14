@@ -71,9 +71,7 @@ sysinfo_cmdlist = [
      ),
     ('Load average',       '''uptime'''),
     ('Memory usage',       '''free -m''', 'free'),
-    ('Top 5 CPU hogs',     '''ps axuScnh | awk '$2!=''' +
-     str(os.getpid()) +
-        '''' | sort -rnk3 | head -5'''),
+    ('Top 5 CPU hogs',     '''ps axuScnh | awk '$2!=''' + str(os.getpid()) + '''' | sort -rnk3 | head -5'''),
     ('Top 5 Memory hogs',  '''ps axuScnh | sort -rnk4 | head -5'''),
     ('Disk space usage',   '''df -hT''', 'df -h', 'df'),
     ('Block devices',      '''blkid''', '''/sbin/blkid'''),
@@ -117,6 +115,7 @@ btrfs_cmdlist = [
     ('btrfs usage',   '''btrfs filesystem usage -T /'''),
 ]
 
+
 def is_text(text, maxCheck=100, pctPrintable=0.75):
     """
     Check to see if a majority of the characters are printable.
@@ -132,7 +131,7 @@ def is_text(text, maxCheck=100, pctPrintable=0.75):
     if nchars == 0:
         return False
     ncheck = min(nchars, maxCheck)
-    inc = float(nchars)/ncheck
+    inc = float(nchars) / ncheck
     i = 0.0
     nprintable = 0
     while i < nchars:
@@ -154,7 +153,7 @@ def confirm(prompt="OK?"):
             mytty = os.ttyname(sys.stdout.fileno())
             sys.stdin = open(mytty)
             ans = input()
-        except:
+        except:  # noqa
             print(
                 "could not rebind sys.stdin to %s after sys.stdin EOF" %
                 mytty,
@@ -184,7 +183,7 @@ def paste(text, options):
          'private': options.private,
          'expire': options.life
          })
-    pasteSizeKiB = len(data)/1024.0
+    pasteSizeKiB = len(data) / 1024.0
 
     # 512KiB appears to be the current hard limit (20110404); old limit was
     # 16MiB
@@ -227,7 +226,7 @@ def paste(text, options):
         response = f.read().decode("utf-8", "replace")
     except ValueError as e:
         print(
-            "Error: Server did not return a correct response",
+            "Error: Server did not return a correct response: " + str(e),
             file=sys.stderr)
         return False
 
@@ -235,7 +234,7 @@ def paste(text, options):
 
 
 def btrfsinfo(show_stderr=False, show_successful_cmds=True,
-            show_failed_cmds=True):
+              show_failed_cmds=True):
     """
     Get btrfs related info.
     """
@@ -328,13 +327,13 @@ def summarize_text(text):
     text = " ".join(text.split())   # nuke whitespace
     tlen = len(text)
 
-    if tlen < sniplen+seplen:
+    if tlen < sniplen + seplen:
         tsum += text
-    if tlen >= sniplen+seplen:
+    if tlen >= sniplen + seplen:
         tsum += text[0:sniplen] + " ..."
-    if tlen >= (sniplen*2)+seplen:
-        tsum += " " + text[tlen/2-(sniplen/2):(tlen/2)+(sniplen/2)] + " ..."
-    if tlen >= (sniplen*3)+(seplen*2):
+    if tlen >= (sniplen * 2) + seplen:
+        tsum += " " + text[tlen / 2 - (sniplen / 2):(tlen / 2) + (sniplen / 2)] + " ..."
+    if tlen >= (sniplen * 3) + (seplen * 2):
         tsum += " " + text[-sniplen:]
     # print >> sys.stderr, str(len(tsum)) + ": " + tsum
 
@@ -583,7 +582,7 @@ def main():
         "yaml",
         "z80",
         "zxbasic"
-        ]
+    ]
     validClipboardSelectionOpts = ['primary', 'secondary', 'clipboard']
     ext2lang_map = {
         'sh': 'bash',
@@ -634,7 +633,7 @@ Examples:
   %%prog --sysinfo --confirm
   %%prog -t "debug output" -l python foo.py""" % SERVER_URL
 
-    parser = OptionParser(usage=usage, version='%prog '+VERSION)
+    parser = OptionParser(usage=usage, version='%prog ' + VERSION)
     parser.add_option(
         '',
         '--debug',
@@ -872,7 +871,7 @@ Examples:
                 parser.error("file '%s' is not readable" % f)
             if (len(args) > 1):     # separate multiple files with header
                 text += '#' * 78 + '\n'
-                text += '### file %d of %d: %s\n' % (i+1,
+                text += '### file %d of %d: %s\n' % (i + 1,
                                                      len(args),
                                                      fileargs[i])
                 text += '#' * 78 + '\n'
@@ -935,7 +934,7 @@ Examples:
                 except CalledProcessError as cpe:
                     if options.debug:
                         print("{} errored with return code {}".format(
-                                cpe.cmd, cpe.returncode), file=sys.stderr)
+                            cpe.cmd, cpe.returncode), file=sys.stderr)
                         print("\n" + cpe.stderr.decode(), file=sys.stderr)
                     print(
                         "WARNING: URL not saved to Wayland clipboard",
@@ -948,9 +947,7 @@ Examples:
 
     if options.pasteself:
         print(
-            "install fpaste to local ~/bin dir by running:    mkdir -p ~/bin; curl " +
-            url +
-            "/raw -o ~/bin/fpaste && chmod +x ~/bin/fpaste",
+            "install fpaste to local ~/bin dir by running:    mkdir -p ~/bin; curl " + url + "/raw -o ~/bin/fpaste && chmod +x ~/bin/fpaste",
             file=sys.stderr)
 
     sys.exit(0)
