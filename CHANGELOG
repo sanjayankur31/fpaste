@@ -3,7 +3,8 @@ fpaste ChangeLog
 0.4.2.0 - development
 
 *) Add lxdm-session to desktop detection command (https://bugzilla.redhat.com/show_bug.cgi?id=1960569)
-*) Various code improvements
+*) Various misc code improvements
+*) Add btrfs sysfs allocations, features, checksums to `--btrfsinfo` (https://pagure.io/fpaste/issue/45)
 
 0.4.1.1 - 20201027
 
