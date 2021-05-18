@@ -1,6 +1,6 @@
 fpaste ChangeLog
 
-0.4.2.0
+0.4.2.0 - 20210518
 
 *) Add lxdm-session to desktop detection command (https://bugzilla.redhat.com/show_bug.cgi?id=1960569)
 *) Various misc code improvements
