@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""fpaste - a cli frontend for the fpaste.org pastebin."""
+"""fpaste - a cli frontend for the paste.fedoraproject.org pastebin."""
 
 # Copyright 2008, 2010 Fedora Unity Project (http://fedoraunity.org)
 # Author: Jason 'zcat' Farrell <farrellj@gmail.com>
@@ -27,7 +27,7 @@ from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
 from subprocess import CalledProcessError
 
 
-VERSION = '0.4.2.0'
+VERSION = '0.4.3.0'
 USER_AGENT = 'fpaste/' + VERSION
 APIKEY = urllib.parse.urlencode({'apikey': '5uZ30dTZE1a5V0WYhNwcMddBRDpk6UzuzMu-APKM38iMHacxdA0n4vCqA34avNyt'})
 SERVER_URL = 'https://paste.centos.org'
@@ -648,7 +648,7 @@ Examples:
     parser.add_option('', '--proxy', dest='proxy', help=SUPPRESS_HELP)
 
     # pastebin-specific options first
-    fpasteOrg_group = OptionGroup(parser, "fpaste.org Options")
+    fpasteOrg_group = OptionGroup(parser, "paste.fedoraproject.org Options")
     fpasteOrg_group.add_option(
         '-t',
         '--title',

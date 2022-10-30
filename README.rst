@@ -1,7 +1,7 @@
 fpaste
 ------
 fpaste is a command-line front-end for the Fedora Pastebin service at
-fpaste.org.  It allows easy uploading of multiple files, or of copy&pasted
+paste.fedoraproject.org.  It allows easy uploading of multiple files, or of copy&pasted
 text from stdin, without requiring a web browser. A unique fpaste link is
 returned, which can then be given to others who are offering help.
 
@@ -10,7 +10,7 @@ returned, which can then be given to others who are offering help.
     e.g.:
     [joeuser@localhost ~]$ fpaste /etc/httpd/conf/httpd.conf
     Uploading...
-    http://fpaste.org/rorn/
+    http://paste.fedoraproject.org/rorn/
 
 
 Upstream
@@ -39,9 +39,12 @@ fpaste maintainers:
 - Jason 'zcat' Farrell <farrellj AT gmail DOT com>
 - Ankur Sinha 'FranciscoD' <ankursinha AT fedoraproject DOT org>
 
-Server-side fpaste.org maintainers:
+Server-side paste.fedoraproject.org maintainers:
 
 - The `Fedora infrastructure team <https://fedoraproject.org/wiki/Infrastructure>`__
+
+fpaste.org maintainers:
+
 - Jonathan 'daMaestro' Steffan <jon AT fedoraunity DOT org>
 
 Mr. FUPT - http://fedorasolved.org/Members/khaytsus/fedora-unity-paste-tool

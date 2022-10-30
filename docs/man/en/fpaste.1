@@ -1,11 +1,11 @@
 .\" first draft by Ankur Sinha &lt;ankursinha at fedoraproject.org&gt;
 .TH "fpaste" "1" "version 0.4.2.0" "Fedora Unity" ""
 .SH "NAME"
-fpaste \- A cli frontend for the fpaste.org pastebin
+fpaste \- A cli frontend for the paste.fedoraproject.org pastebin
 .SH "SYNOPSIS"
 \fBfpaste\fR [\fIOPTION\fR]... [\fIFILE\fR]...
 .SH "DESCRIPTION"
-It is often useful to be able to easily paste text to the Fedora Pastebin at http://fpaste.org and this simple utility will do that and return the resulting URL so that people may examine the output. This can hopefully help folks who are for some reason stuck without a graphical interface, working remotely, or any other reason they may be unable to paste something into the pastebin using a web browser.
+It is often useful to be able to easily paste text to the Fedora Pastebin at http://paste.fedoraproject.org and this simple utility will do that and return the resulting URL so that people may examine the output. This can hopefully help folks who are for some reason stuck without a graphical interface, working remotely, or any other reason they may be unable to paste something into the pastebin using a web browser.
 .SH "OPTIONS"
 .TP 
 \fB\-\-version\fR
@@ -60,15 +60,15 @@ print paste, but do not send
 print paste, and prompt for confirmation before sending
 .SH "EXAMPLES"
 .TP 
-Paste file foo.txt at fpaste.org
+Paste file foo.txt at paste.fedoraproject.org
 .IP 
 \fBfpaste foo.txt\fR
 .TP 
-Paste output of ifconfig to fpaste.org with description "my network config"
+Paste output of ifconfig to paste.fedoraproject.org with description "my network config"
 .IP 
 \fBifconfig | fpaste \fR
 .TP 
-Paste mycode.py to fpaste.org with description as "problem with foo" and language "python"
+Paste mycode.py to paste.fedoraproject.org with description as "problem with foo" and language "python"
 .IP 
 \fBfpaste \-l python mycode.py\fR
 .TP 
@@ -92,7 +92,7 @@ To paste the output of more than one program and/or file at a time, use the foll
 
 \fB(uname \-a ; yum repolist) | fpaste\fR
 .TP 
-Gather and paste various information about the running system. The info collected should be practically anonymous, and you may use the \-\-printonly or \-\-confirm options to preview what would be sent. fpaste.org URLs are also practically anonymous ([a\-zA\-Z0\-9]**4 == 14,776,336 combinations), so you may also preview it instead before giving the link out.
+Gather and paste various information about the running system. The info collected should be practically anonymous, and you may use the \-\-printonly or \-\-confirm options to preview what would be sent. paste.fedoraproject.org URLs are also practically anonymous ([a\-zA\-Z0\-9]**4 == 14,776,336 combinations), so you may also preview it instead before giving the link out.
 .IP 
 \fBfpaste \-\-sysinfo\fR
 .br 
