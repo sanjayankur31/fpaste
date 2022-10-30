@@ -1,5 +1,11 @@
 fpaste ChangeLog
 
+0.4.3.0 - 20221030
+
+*) replace fpaste.org with paste.fp.o URL
+*) Add PSI info
+*) Add zramctl info
+
 0.4.2.0 - 20210518
 
 *) Add lxdm-session to desktop detection command (https://bugzilla.redhat.com/show_bug.cgi?id=1960569)
