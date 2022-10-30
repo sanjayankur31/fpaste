@@ -70,6 +70,8 @@ sysinfo_cmdlist = [
      '''grep -Eq '(vmx|svm)' /proc/cpuinfo && echo Yes || echo No'''
      ),
     ('Load average',       '''uptime'''),
+    ('Pressure Stall Information',
+     '''grep -R . /proc/pressure/'''),
     ('Memory usage',       '''free -m''', 'free'),
     ('Top 5 CPU hogs',     '''ps axuScnh | awk '$2!=''' + str(os.getpid()) + '''' | sort -rnk3 | head -5'''),
     ('Top 5 Memory hogs',  '''ps axuScnh | sort -rnk4 | head -5'''),
