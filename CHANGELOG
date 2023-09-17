@@ -1,6 +1,8 @@
 fpaste ChangeLog
 
-0.4.4.0
+0.4.4.0 - 20230917
+
+*) fix escape sequences
 
 0.4.3.0 - 20221030
 
