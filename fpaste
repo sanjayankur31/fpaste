@@ -27,7 +27,7 @@ from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
 from subprocess import CalledProcessError
 
 
-VERSION = '0.4.3.0'
+VERSION = '0.4.4.0'
 USER_AGENT = 'fpaste/' + VERSION
 APIKEY = urllib.parse.urlencode({'apikey': '5uZ30dTZE1a5V0WYhNwcMddBRDpk6UzuzMu-APKM38iMHacxdA0n4vCqA34avNyt'})
 SERVER_URL = 'https://paste.centos.org'
@@ -47,7 +47,7 @@ sysinfo_cmdlist = [
      '''ps -eo comm= | grep -E '(gnome-session|startkde|startactive|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session|mate-session|lxqt-session|cinnamon|lxdm-session)' '''
      ),
     ('Desktop(s) Installed',
-     '''ls -m /usr/share/xsessions/ | sed 's/\.desktop//g' '''
+     '''ls -m /usr/share/xsessions/ | sed 's/\\.desktop//g' '''
      ),
     ('SELinux Status',
      '''sestatus''',
@@ -90,7 +90,7 @@ sysinfo_cmdlist = [
      '''glxinfo | grep -E "OpenGL version|OpenGL renderer"'''
      ),
     ('Xorg errors',
-     '''grep '^\[.*(EE)' /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log | cut -d ':' -f 2- '''
+     '''grep '^\\[.*(EE)' /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log | cut -d ':' -f 2- '''
      ),
     ('Kernel buffer tail', '''dmesg | tail'''),
     ('Last few reboots',   '''last -x -n10 reboot runlevel'''),
@@ -113,7 +113,7 @@ btrfs_cmdlist = [
      ),
     ('block devices', '''lsblk -o NAME,FSTYPE,SIZE,FSUSE%,MOUNTPOINT,UUID,MIN-IO,SCHED,DISC-GRAN,MODEL'''
      ),
-    ('Kernel messages', '''journalctl -k -o short-monotonic --no-hostname | grep "Linux version\| ata\|Btrfs\|BTRFS\|] hd\| scsi\| sd\| sdhci\| mmc\| nvme\| usb\| vd"'''
+    ('Kernel messages', '''journalctl -k -o short-monotonic --no-hostname | grep "Linux version\\| ata\\|Btrfs\\|BTRFS\\|] hd\\| scsi\\| sd\\| sdhci\\| mmc\\| nvme\\| usb\\| vd"'''
      ),
     ('btrfs usage',   '''btrfs filesystem usage -T /'''),
     ('FSUUID',   '''findmnt -n -o UUID $(stat -c '%m' "/")'''),
