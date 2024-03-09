@@ -695,7 +695,7 @@ Examples:
         '-w',
         '--wayland-clipin',
         dest='wclipin',
-        help='read paste text from Wayland selection [requires: wl-clip]',
+        help='read paste text from Wayland selection [requires the wl-clipboard package]',
         action="store_true",
         default=False)
     fpasteProg_group.add_option(
