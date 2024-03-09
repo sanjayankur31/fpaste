@@ -753,6 +753,13 @@ Examples:
         help='print paste, and prompt for confirmation before sending',
         action="store_true",
         default=False)
+    fpasteProg_group.add_option(
+        '',
+        '--raw-url',
+        dest='rawurl',
+        help='pring raw url',
+        action="store_true",
+        default=False)
     parser.add_option_group(fpasteProg_group)
 
 # Let default be anonymous.
@@ -947,7 +954,11 @@ Examples:
                         "WARNING: URL not saved to Wayland clipboard",
                         file=sys.stderr)
 
-        print(url)
+        if options.rawurl:
+            rawurl = url.replace("view/", "view/raw/")
+            print(rawurl)
+        else:
+            print(url)
 
     else:
         sys.exit(1)
