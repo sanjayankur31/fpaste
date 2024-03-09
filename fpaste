@@ -631,9 +631,16 @@ def main():
 
     usage = """\
 Usage: %%prog [OPTION]... [FILE]...
-  send text file(s), stdin, or clipboard to the Fedora community pastebin at %s and return the URL.
+  Send text file(s), stdin, or clipboard to the Fedora community pastebin at %s and return the URL.
 
-Examples:
+  It is often useful to be able to easily paste text to the Fedora Pastebin at
+  http://paste.fedoraproject.org and this simple utility will do that and
+  return the resulting URL so that people may examine the output. This can
+  hopefully help folks who are for some reason stuck without a graphical
+  interface, working remotely, or any other reason they may be unable to paste
+  something into the pastebin using a web browser.
+
+  Examples:
   %%prog file1.txt file2.txt
   dmesg | %%prog
   (prog1; prog2; prog3) | fpaste
@@ -757,7 +764,7 @@ Examples:
         '',
         '--raw-url',
         dest='rawurl',
-        help='pring raw url',
+        help='print raw url',
         action="store_true",
         default=False)
     parser.add_option_group(fpasteProg_group)
