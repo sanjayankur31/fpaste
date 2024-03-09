@@ -92,7 +92,7 @@ sysinfo_cmdlist = [
     ('Xorg errors',
      '''grep '^\\[.*(EE)' /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log | cut -d ':' -f 2- '''
      ),
-    ('Kernel buffer tail', '''dmesg | tail'''),
+    ('Kernel buffer tail', '''journalctl -k --lines 50'''),
     ('Last few reboots',   '''last -x -n10 reboot runlevel'''),
     ('DNF Repositories',
      '''dnf repolist''',
