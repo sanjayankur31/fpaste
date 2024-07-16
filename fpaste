@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
-"""fpaste - a cli frontend for the fpaste.org pastebin."""
+#!/usr/bin/python3
+"""fpaste - a cli frontend for the paste.fedoraproject.org pastebin."""
 
 # Copyright 2008, 2010 Fedora Unity Project (http://fedoraunity.org)
 # Author: Jason 'zcat' Farrell <farrellj@gmail.com>
@@ -27,7 +27,7 @@ from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
 from subprocess import CalledProcessError
 
 
-VERSION = '0.4.2.0'
+VERSION = '0.4.5.1'
 USER_AGENT = 'fpaste/' + VERSION
 APIKEY = urllib.parse.urlencode({'apikey': '5uZ30dTZE1a5V0WYhNwcMddBRDpk6UzuzMu-APKM38iMHacxdA0n4vCqA34avNyt'})
 SERVER_URL = 'https://paste.centos.org'
@@ -47,7 +47,7 @@ sysinfo_cmdlist = [
      '''ps -eo comm= | grep -E '(gnome-session|startkde|startactive|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session|mate-session|lxqt-session|cinnamon|lxdm-session)' '''
      ),
     ('Desktop(s) Installed',
-     '''ls -m /usr/share/xsessions/ | sed 's/\.desktop//g' '''
+     '''ls -m /usr/share/xsessions/ | sed 's/\\.desktop//g' '''
      ),
     ('SELinux Status',
      '''sestatus''',
@@ -70,7 +70,10 @@ sysinfo_cmdlist = [
      '''grep -Eq '(vmx|svm)' /proc/cpuinfo && echo Yes || echo No'''
      ),
     ('Load average',       '''uptime'''),
+    ('Pressure Stall Information',
+     '''grep -R . /proc/pressure/'''),
     ('Memory usage',       '''free -m''', 'free'),
+    ('ZRAM usage',       '''zramctl --output-all'''),
     ('Top 5 CPU hogs',     '''ps axuScnh | awk '$2!=''' + str(os.getpid()) + '''' | sort -rnk3 | head -5'''),
     ('Top 5 Memory hogs',  '''ps axuScnh | sort -rnk4 | head -5'''),
     ('Disk space usage',   '''df -hT''', 'df -h', 'df'),
@@ -87,9 +90,9 @@ sysinfo_cmdlist = [
      '''glxinfo | grep -E "OpenGL version|OpenGL renderer"'''
      ),
     ('Xorg errors',
-     '''grep '^\[.*(EE)' /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log | cut -d ':' -f 2- '''
+     '''grep '^\\[.*(EE)' /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log | cut -d ':' -f 2- '''
      ),
-    ('Kernel buffer tail', '''dmesg | tail'''),
+    ('Kernel buffer tail', '''journalctl -k --lines 50'''),
     ('Last few reboots',   '''last -x -n10 reboot runlevel'''),
     ('DNF Repositories',
      '''dnf repolist''',
@@ -110,7 +113,7 @@ btrfs_cmdlist = [
      ),
     ('block devices', '''lsblk -o NAME,FSTYPE,SIZE,FSUSE%,MOUNTPOINT,UUID,MIN-IO,SCHED,DISC-GRAN,MODEL'''
      ),
-    ('Kernel messages', '''journalctl -k -o short-monotonic --no-hostname | grep "Linux version\| ata\|Btrfs\|BTRFS\|] hd\| scsi\| sd\| sdhci\| mmc\| nvme\| usb\| vd"'''
+    ('Kernel messages', '''journalctl -k -o short-monotonic --no-hostname | grep "Linux version\\| ata\\|Btrfs\\|BTRFS\\|] hd\\| scsi\\| sd\\| sdhci\\| mmc\\| nvme\\| usb\\| vd"'''
      ),
     ('btrfs usage',   '''btrfs filesystem usage -T /'''),
     ('FSUUID',   '''findmnt -n -o UUID $(stat -c '%m' "/")'''),
@@ -119,6 +122,26 @@ btrfs_cmdlist = [
     ('btrfs checksum',   '''FSUUID=$(findmnt -n -o UUID $(stat -c '%m' "/")); cat /sys/fs/btrfs/"$FSUUID"/checksum'''),
 ]
 
+gpuinfo_cmdlist = [
+    ('GPU PCI Info', '''lspci | grep -i vga | cut -b1-7 | xargs -i lspci -vnnks {}'''
+     ),
+    ('GL Support',
+     '''glxinfo 2>/dev/null | grep -E "OpenGL version|OpenGL renderer"'''
+     ),
+]
+audioinfo_cmdlist = [
+    ('Audio PCI Info', '''lspci | grep -i audio | cut -b1-7 | xargs -i lspci -vnnks {}'''
+     ),
+    ('Wireplumber Sevice Status',
+     '''systemctl status --user wireplumber'''
+     ),
+    ('Pipewire Services Status',
+     '''systemctl status --user pipewire*'''
+     ),
+    ('Wireplumber Control CLI Status',
+     '''wpctl status'''
+     ),
+]
 
 def is_text(text, maxCheck=100, pctPrintable=0.75):
     """
@@ -244,6 +267,19 @@ def btrfsinfo(show_stderr=False, show_successful_cmds=True,
     """
     return getinfo(btrfs_cmdlist)
 
+def gpuinfo(show_stderr=False, show_successful_cmds=True,
+              show_failed_cmds=True):
+    """
+    Get GPU related info.
+    """
+    return getinfo(gpuinfo_cmdlist)
+
+def audioinfo(show_stderr=False, show_successful_cmds=True,
+              show_failed_cmds=True):
+    """
+    Get Audio related info.
+    """
+    return getinfo(audioinfo_cmdlist)
 
 def sysinfo(show_stderr=False, show_successful_cmds=True,
             show_failed_cmds=True):
@@ -628,9 +664,16 @@ def main():
 
     usage = """\
 Usage: %%prog [OPTION]... [FILE]...
-  send text file(s), stdin, or clipboard to the Fedora community pastebin at %s and return the URL.
+  Send text file(s), stdin, or clipboard to the Fedora community pastebin at %s and return the URL.
 
-Examples:
+  It is often useful to be able to easily paste text to the Fedora Pastebin at
+  http://paste.fedoraproject.org and this simple utility will do that and
+  return the resulting URL so that people may examine the output. This can
+  hopefully help folks who are for some reason stuck without a graphical
+  interface, working remotely, or any other reason they may be unable to paste
+  something into the pastebin using a web browser.
+
+  Examples:
   %%prog file1.txt file2.txt
   dmesg | %%prog
   (prog1; prog2; prog3) | fpaste
@@ -648,7 +691,7 @@ Examples:
     parser.add_option('', '--proxy', dest='proxy', help=SUPPRESS_HELP)
 
     # pastebin-specific options first
-    fpasteOrg_group = OptionGroup(parser, "fpaste.org Options")
+    fpasteOrg_group = OptionGroup(parser, "paste.fedoraproject.org Options")
     fpasteOrg_group.add_option(
         '-t',
         '--title',
@@ -692,7 +735,7 @@ Examples:
         '-w',
         '--wayland-clipin',
         dest='wclipin',
-        help='read paste text from Wayland selection [requires: wl-clip]',
+        help='read paste text from Wayland selection [requires the wl-clipboard package]',
         action="store_true",
         default=False)
     fpasteProg_group.add_option(
@@ -738,6 +781,20 @@ Examples:
         default=False)
     fpasteProg_group.add_option(
         '',
+        '--gpuinfo',
+        dest='gpuinfo',
+        help='GPU Information',
+        action="store_true",
+        default=False)
+    fpasteProg_group.add_option(
+        '',
+        '--audioinfo',
+        dest='audioinfo',
+        help='Audio Information',
+        action="store_true",
+        default=False)
+    fpasteProg_group.add_option(
+        '',
         '--printonly',
         dest='printonly',
         help='print paste, but do not send',
@@ -748,6 +805,13 @@ Examples:
         '--confirm',
         dest='confirm',
         help='print paste, and prompt for confirmation before sending',
+        action="store_true",
+        default=False)
+    fpasteProg_group.add_option(
+        '',
+        '--raw-url',
+        dest='rawurl',
+        help='print raw url',
         action="store_true",
         default=False)
     parser.add_option_group(fpasteProg_group)
@@ -860,6 +924,10 @@ Examples:
         text = sysinfo(options.debug)
     elif options.btrfsinfo:
         text = btrfsinfo(options.debug)
+    elif options.gpuinfo:
+        text = gpuinfo(options.debug)
+    elif options.audioinfo:
+        text = audioinfo(options.debug)
     elif not args:   # read from stdin if no file args supplied
         try:
             input_text = sys.stdin.buffer.read()
@@ -944,7 +1012,11 @@ Examples:
                         "WARNING: URL not saved to Wayland clipboard",
                         file=sys.stderr)
 
-        print(url)
+        if options.rawurl:
+            rawurl = url.replace("view/", "view/raw/")
+            print(rawurl)
+        else:
+            print(url)
 
     else:
         sys.exit(1)
