@@ -44,7 +44,7 @@ sysinfo_cmdlist = [
     ('Kernel',             '''uname -r ; cat /proc/cmdline'''
      ),
     ('Desktop(s) Running',
-     '''ps -eo comm= | grep -E '(gnome-session|startkde|startactive|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session|mate-session|lxqt-session|cinnamon|lxdm-session)' '''
+     '''ps -eo comm= | grep -E '(gnome-session|startkde|startactive|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session|mate-session|lxqt-session|cinnamon|lxdm-session|awesome|phosh)' '''
      ),
     ('Desktop(s) Installed',
      '''ls -m /usr/share/xsessions/ | sed 's/\\.desktop//g' '''
