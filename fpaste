@@ -34,31 +34,36 @@ SERVER_URL = 'https://paste.centos.org'
 FPASTE_URL = 'https://paste.centos.org/api/create?' + APIKEY
 
 # cmd name, command, command2 fallback, command3 fallback, ...
-sysinfo_cmdlist = [
+release_cmdlist = [
     ('OS Release',
      '''lsb_release -ds''',
      '''cat /etc/*-release | uniq''',
      'cat /etc/issue',
      'cat /etc/motd'
      ),
-    ('Kernel',             '''uname -r ; cat /proc/cmdline'''
+]
+
+kernel_cmdlist = [
+    ('Kernel', '''uname -r'''
      ),
+    ('Kernel cmdline', '''cat /proc/cmdline'''
+     ),
+]
+
+desktop_cmdlist = [
     ('Desktop(s) Running',
-     '''ps -eo comm= | grep -E '(gnome-session|startkde|startactive|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session|mate-session|lxqt-session|cinnamon|lxdm-session|awesome|phosh)' '''
+     '''ps -eo comm= | grep -E '(gnome-session|startkde|startactive|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session|mate-session|lxqt-session|cinnamon|lxdm-session|awesome|phosh|sway|Hyperland)' '''
      ),
     ('Desktop(s) Installed',
-     '''ls -m /usr/share/xsessions/ | sed 's/\\.desktop//g' '''
+     '''ls -m /usr/share/{xsessions,wayland-sessions}/ | sed 's/\\.desktop//g' '''
      ),
-    ('SELinux Status',
-     '''sestatus''',
-     '''/usr/sbin/sestatus''',
-     '''getenforce''',
-     '''grep -v '^#' /etc/sysconfig/selinux'''
+    ('Session Type',
+     '''env | grep 'XDG_SESSION_TYPE' | sed 's/.*=//' '''
      ),
-    ('SELinux Errors',
-     '''selinuxenabled && journalctl --since yesterday |grep avc: | grep -Eo comm="[^ ]+" | sort |uniq -c |sort -rn'''
-     ),
-    ('CPU Model',
+]
+
+cpu_cmdlist = [
+('CPU Model',
      '''grep 'model name' /proc/cpuinfo | awk -F: '{print $2}' | uniq -c |
      sed -re 's/^ +//' ''',
      '''grep 'model name' /proc/cpuinfo'''
@@ -69,59 +74,147 @@ sysinfo_cmdlist = [
     ('Hardware Virtualization Support',
      '''grep -Eq '(vmx|svm)' /proc/cpuinfo && echo Yes || echo No'''
      ),
-    ('Load average',       '''uptime'''),
+]
+
+selinux_cmdlist = [
+   ('SELinux Status',
+     '''sestatus''',
+     '''/usr/sbin/sestatus''',
+     '''getenforce''',
+     '''grep -v '^#' /etc/sysconfig/selinux'''
+     ),
+    ('SELinux Errors',
+     '''selinuxenabled && journalctl --no-hostname --since yesterday |grep avc: | grep -Eo comm="[^ ]+" | sort |uniq -c |sort -rn'''
+     ),
+]
+
+mem_cmdlist = [
+    ('Memory usage', '''free -hm''', 'free'
+     ),
+    ('ZRAM usage', '''zramctl --output-all'''
+     ),
+]
+
+perf_cmdlist = [
+    ('Load average',       '''uptime'''
+     ),
     ('Pressure Stall Information',
-     '''grep -R . /proc/pressure/'''),
-    ('Memory usage',       '''free -m''', 'free'),
-    ('ZRAM usage',       '''zramctl --output-all'''),
-    ('Top 5 CPU hogs',     '''ps axuScnh | awk '$2!=''' + str(os.getpid()) + '''' | sort -rnk3 | head -5'''),
-    ('Top 5 Memory hogs',  '''ps axuScnh | sort -rnk4 | head -5'''),
-    ('Disk space usage',   '''df -hT''', 'df -h', 'df'),
-    ('Block devices',      '''blkid''', '''/sbin/blkid'''),
-    ('PCI devices',        '''lspci -nn''', '''/sbin/lspci -nn''', '''lspci''', '''/sbin/lspci'''),
-    ('USB devices',        '''lsusb''', '''/sbin/lsusb'''),
+     '''grep -R . /proc/pressure/'''
+     ),
+    ('Top 5 CPU hogs', '''ps axuScnh | awk '$2!=''' + str(os.getpid()) + '''' | sort -rnk3 | head -5'''
+     ),
+    ('Top 5 Memory hogs', '''ps axuScnh | sort -rnk4 | head -5'''
+     ),
+]
+
+storage_cmdlist = [
+    ('block devices', '''lsblk -o NAME,FSTYPE,SIZE,FSUSE%,MOUNTPOINT,UUID,MIN-IO,SCHED,DISC-GRAN,MODEL'''
+     ),
+]
+
+pci_cmdlist = [
+    ('PCI devices', '''lspci -nn''', '''/sbin/lspci -nn''', '''lspci''', '''/sbin/lspci'''
+     ),
+]
+
+pci_verbose_cmdlist = [
+    ('PCI devices', '''lspci -vvnnk | grep -v "<access denied>"''', '''/sbin/lspci -vvnnkk | grep -v "<access denied>"'''
+     ),
+]
+
+usb_cmdlist = [
+    ('USB devices', '''lsusb''', '''/sbin/lsusb'''
+     ),
+]
+
+usb_verbose_cmdlist = [
+    ('USB devices', '''lsusb -vv -t''', '''/sbin/lsusb -vv -t'''
+     ),
+]
+
+audio_cmdlist = [
+    ('PCI Audio devices', '''lspci |  grep -i -E 'audio' | cut -b1-7 | xargs -i lspci -vnnks {} | grep -v "<access denied>"'''
+     ),
+    ('Audio devices', '''cat /proc/asound/cards'''
+     ),
+    ('User audio services', '''systemctl --user --no-pager status wireplumber pipewire* | sed "s/$(hostname)/ahost/"'''
+     ),
+]
+
+gpu_cmdlist = [
+    ('PCI Video Card', '''lspci |  grep -i -E 'vga' | cut -b1-7 | xargs -i lspci -vnnks {} | grep -v "<access denied>"'''
+     ),
+    ('GL Support', '''glxinfo -B | grep -E "OpenGL version|OpenGL renderer"'''
+     ),
+]
+
+drm_cmdlist = [
     ('DRM Information',
-     '''journalctl -k -b | grep -o 'kernel:.*drm.*$' | cut -d ' ' -f 2- '''
+     '''journalctl -k -b --no-hostname | grep -o 'kernel:.*drm.*$' | cut -d ' ' -f 2- '''
      ),
-    ('Xorg modules',
+]
+
+xorg_cmdlist = [
+     ('Xorg modules',
      '''grep LoadModule /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log | cut -d \\" -f 2 | xargs'''
-     ),
-    ('GL Support',
-     '''glxinfo | grep -E "OpenGL version|OpenGL renderer"'''
      ),
     ('Xorg errors',
      '''grep '^\\[.*(EE)' /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log | cut -d ':' -f 2- '''
      ),
-    ('Kernel buffer tail', '''journalctl -k --lines 50'''),
-    ('Last few reboots',   '''last -x -n10 reboot runlevel'''),
+]
+
+dnf_cmdlist = [
     ('DNF Repositories',
      '''dnf repolist''',
      '''ls -l /etc/yum.repos.d''',
      '''grep -v '^#' /etc/yum.conf'''
      ),
-    ('DNF Extras',         '''dnf -C list extras'''),
+    ('DNF Extras',         '''dnf -C list extras'''
+     ),
     ('Last 20 packages installed', '''rpm -qa --nodigest --nosignature --last | head -20'''),
     # ('Installed packages', '''rpm -qa --nodigest --nosignature | sort''', '''dpkg -l''') ]
-    ('EFI boot manager output', '''efibootmgr -v''')]
+]
+
+efiboot_cmdlist = [
+   ('EFI boot manager output', '''efibootmgr -v'''
+    ),
+]
+
+reboot_cmdlist = [
+    ('Last few reboots',   '''last -x -n10 reboot runlevel'''
+     ),
+]
+
+kernelbuffer_cmdlist = [
+    ('Kernel buffer tail', '''journalctl --no-hostname -k --lines 50'''
+     ),
+]
+
+net_cmdlist = [
+    ('PCI Network devices', '''lspci |  grep -i -E 'net' | cut -b1-7 | xargs -i lspci -vnnks {} | grep -v "<access denied>"'''
+     ),
+    ('Network status', '''ip -br addr | awk '{print $1" " $2}' | column -t'''
+     ),
+]
 
 btrfs_cmdlist = [
-    ('Kernel', '''uname -r ; cat /proc/cmdline'''
+    ('btrfs usage', '''btrfs filesystem usage -T /'''
      ),
     ('btrfs-progs', '''rpm -q btrfs-progs'''
      ),
     ('btrfs mounts', '''grep btrfs /proc/mounts'''
      ),
-    ('block devices', '''lsblk -o NAME,FSTYPE,SIZE,FSUSE%,MOUNTPOINT,UUID,MIN-IO,SCHED,DISC-GRAN,MODEL'''
+    ('FSUUID', '''findmnt -n -o UUID $(stat -c '%m' "/")'''
+     ),
+    ('btrfs allocations', '''FSUUID=$(findmnt -n -o UUID $(stat -c '%m' "/")); grep -R . /sys/fs/btrfs/"$FSUUID"/allocation/ | sed "s/^.*allocation//"'''
+     ),
+    ('btrfs features', '''FSUUID=$(findmnt -n -o UUID $(stat -c '%m' "/")); grep -R . /sys/fs/btrfs/"$FSUUID"/features/ | sed "s/^.*features//"'''
+     ),
+    ('btrfs checksum', '''FSUUID=$(findmnt -n -o UUID $(stat -c '%m' "/")); cat /sys/fs/btrfs/"$FSUUID"/checksum'''
      ),
     ('Kernel messages', '''journalctl -k -o short-monotonic --no-hostname | grep "Linux version\\| ata\\|Btrfs\\|BTRFS\\|] hd\\| scsi\\| sd\\| sdhci\\| mmc\\| nvme\\| usb\\| vd"'''
      ),
-    ('btrfs usage',   '''btrfs filesystem usage -T /'''),
-    ('FSUUID',   '''findmnt -n -o UUID $(stat -c '%m' "/")'''),
-    ('btrfs allocations',   '''FSUUID=$(findmnt -n -o UUID $(stat -c '%m' "/")); grep -R . /sys/fs/btrfs/"$FSUUID"/allocation/ | sed "s/^.*allocation//"'''),
-    ('btrfs features',   '''FSUUID=$(findmnt -n -o UUID $(stat -c '%m' "/")); grep -R . /sys/fs/btrfs/"$FSUUID"/features/ | sed "s/^.*features//"'''),
-    ('btrfs checksum',   '''FSUUID=$(findmnt -n -o UUID $(stat -c '%m' "/")); cat /sys/fs/btrfs/"$FSUUID"/checksum'''),
-]
-
+   ]
 
 def is_text(text, maxCheck=100, pctPrintable=0.75):
     """
@@ -245,7 +338,7 @@ def btrfsinfo(show_stderr=False, show_successful_cmds=True,
     """
     Get btrfs related info.
     """
-    return getinfo(btrfs_cmdlist)
+    return getinfo(release_cmdlist + kernel_cmdlist + storage_cmdlist + btrfs_cmdlist)
 
 
 def sysinfo(show_stderr=False, show_successful_cmds=True,
@@ -253,7 +346,69 @@ def sysinfo(show_stderr=False, show_successful_cmds=True,
     """
     Get general system related info.
     """
-    return getinfo(sysinfo_cmdlist)
+    return getinfo(release_cmdlist + cpu_cmdlist + kernel_cmdlist + desktop_cmdlist + selinux_cmdlist + mem_cmdlist + perf_cmdlist + storage_cmdlist + pci_cmdlist + usb_cmdlist + gpu_cmdlist + drm_cmdlist + xorg_cmdlist + audio_cmdlist + net_cmdlist + kernelbuffer_cmdlist + reboot_cmdlist + dnf_cmdlist + efiboot_cmdlist)
+
+
+def sysinfo_short(show_stderr=False, show_successful_cmds=True,
+            show_failed_cmds=True):
+    """
+    Get shortened system related info.
+    """
+    return getinfo(release_cmdlist + cpu_cmdlist + kernel_cmdlist + desktop_cmdlist + mem_cmdlist + storage_cmdlist + pci_cmdlist + usb_cmdlist + gpu_cmdlist + audio_cmdlist + net_cmdlist)
+
+def pci_verbose_info(show_stderr=False, show_successful_cmds=True,
+            show_failed_cmds=True):
+    """
+    Get verbose listing of PCI devices.
+    """
+    return getinfo(release_cmdlist + kernel_cmdlist + pci_verbose_cmdlist)
+
+def usb_verbose_info(show_stderr=False, show_successful_cmds=True,
+            show_failed_cmds=True):
+    """
+    Get verbose listing of USB devices.
+    """
+    return getinfo(release_cmdlist + kernel_cmdlist + usb_verbose_cmdlist)
+
+
+def audioinfo(show_stderr=False, show_successful_cmds=True,
+            show_failed_cmds=True):
+    """
+    Get general audio info.
+    """
+    return getinfo(release_cmdlist + kernel_cmdlist + audio_cmdlist)
+
+
+def videoinfo(show_stderr=False, show_successful_cmds=True,
+            show_failed_cmds=True):
+    """
+    Get general video info.
+    """
+    return getinfo(release_cmdlist + kernel_cmdlist + desktop_cmdlist + xorg_cmdlist + gpu_cmdlist)
+
+
+def netinfo(show_stderr=False, show_successful_cmds=True,
+            show_failed_cmds=True):
+    """
+    Get general network device info.
+    """
+    return getinfo(release_cmdlist + kernel_cmdlist + net_cmdlist)
+
+
+def diskinfo(show_stderr=False, show_successful_cmds=True,
+            show_failed_cmds=True):
+    """
+    Get general disk related info.
+    """
+    return getinfo(release_cmdlist + kernel_cmdlist + storage_cmdlist)
+
+
+def dnfinfo(show_stderr=False, show_successful_cmds=True,
+            show_failed_cmds=True):
+    """
+    Get repository and package information.
+    """
+    return getinfo(release_cmdlist + dnf_cmdlist)
 
 
 def getinfo(cmdlist, show_stderr=False, show_successful_cmds=True,
@@ -309,7 +464,7 @@ def getinfo(cmdlist, show_stderr=False, show_successful_cmds=True,
                         out))
             else:
                 si.append(('%s' % cmdname, out))
-
+    print(" ", end='\n', file=sys.stderr)
     # return in readable indented format
     sistr = "=== fpaste %s System Information ===\n" % VERSION
     for cmdname, output in si:
@@ -741,7 +896,71 @@ Usage: %%prog [OPTION]... [FILE]...
         default=False)
     fpasteProg_group.add_option(
         '',
+        '--sysinfo-short',
+        dest='sysinfo_short',
+        help='paste shortened system information',
+        action="store_true",
+        default=False)
+    fpasteProg_group.add_option(
+        '',
+        '--audioinfo',
+        '--sysinfo-audio',
+        dest='audioinfo',
+        help='paste general audio information',
+        action="store_true",
+        default=False)
+    fpasteProg_group.add_option(
+        '',
+        '--videoinfo',
+        '--sysinfo-video',
+        dest='videoinfo',
+        help='paste general video information',
+        action="store_true",
+        default=False)
+    fpasteProg_group.add_option(
+        '',
+        '--diskinfo',
+        '--sysinfo-disk',
+        dest='diskinfo',
+        help='paste general disk information',
+        action="store_true",
+        default=False)
+    fpasteProg_group.add_option(
+        '',
+        '--netinfo',
+        '--sysinfo-net',
+        dest='netinfo',
+        help='paste general network information',
+        action="store_true",
+        default=False)
+    fpasteProg_group.add_option(
+        '',
+        '--dnfinfo',
+        '--sysinfo-dnf',
+        dest='dnfinfo',
+        help='paste repository and package information',
+        action="store_true",
+        default=False)
+    fpasteProg_group.add_option(
+        '',
+        '--pci-verbose',
+        '--sysinfo-pci-verbose',
+        dest='pci_verbose_info',
+        help='paste verbose pci information',
+        action="store_true",
+        default=False)
+    fpasteProg_group.add_option(
+        '',
+        '--usb-verbose',
+        '--sysinfo-usb-verbose',
+        dest='usb_verbose_info',
+        help='paste verbose usb information',
+        action="store_true",
+        default=False)
+    fpasteProg_group.add_option(
+        '',
         '--btrfsinfo',
+        '--sysinfo-btrfs',
         dest='btrfsinfo',
         help='paste btrfs related system information',
         action="store_true",
@@ -875,6 +1094,22 @@ Usage: %%prog [OPTION]... [FILE]...
         options.lang = 'python'
     elif options.sysinfo:
         text = sysinfo(options.debug)
+    elif options.sysinfo_short:
+        text = sysinfo_short(options.debug)
+    elif options.pci_verbose_info:
+        text = pci_verbose_info(options.debug)
+    elif options.usb_verbose_info:
+        text = usb_verbose_info(options.debug)
+    elif options.audioinfo:
+        text = audioinfo(options.debug)
+    elif options.videoinfo:
+        text = videoinfo(options.debug)
+    elif options.diskinfo:
+        text = diskinfo(options.debug)
+    elif options.netinfo:
+        text = netinfo(options.debug)
+    elif options.dnfinfo:
+        text = dnfinfo(options.debug)
     elif options.btrfsinfo:
         text = btrfsinfo(options.debug)
     elif not args:   # read from stdin if no file args supplied
