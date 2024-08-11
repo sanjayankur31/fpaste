@@ -118,7 +118,7 @@ pci_cmdlist = [
 ]
 
 pci_verbose_cmdlist = [
-    ('PCI devices', '''lspci -vvnnk | grep -v "<access denied>"''', '''/sbin/lspci -vvnnkk | grep -v "<access denied>"'''
+    ('PCI devices', '''lspci -vvnnk''', '''/sbin/lspci -vvnnkk'''
      ),
 ]
 
