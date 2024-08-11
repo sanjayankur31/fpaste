@@ -1,7 +1,22 @@
 fpaste ChangeLog
 
-0.4.5.0 - dev
+0.5.0.1 - dev
 
+0.5.0.0 - 20240811
+
+*) add more options (FAS: @grumpey)
+*) break options into new form (FAS: @grumpey)
+*) add tests
+*) add more desktops (FAS: @davidsch)
+
+0.4.5.1 - 20240309
+
+*) include bash completion
+
+0.4.5.0 - 20240309
+
+*) add option to print rawurl
+*) use journalctl instead of dmesg
 
 0.4.4.0 - 20230917
 
