@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""fpaste - a cli frontend for the paste.fedoraproject.org pastebin."""
+"""fpaste - a cli frontend for the https://paste.centos.org pastebin."""
 
 # Copyright 2008, 2010 Fedora Unity Project (http://fedoraunity.org)
 # Author: Jason 'zcat' Farrell <farrellj@gmail.com>
@@ -32,6 +32,7 @@ USER_AGENT = 'fpaste/' + VERSION
 APIKEY = urllib.parse.urlencode({'apikey': '5uZ30dTZE1a5V0WYhNwcMddBRDpk6UzuzMu-APKM38iMHacxdA0n4vCqA34avNyt'})
 SERVER_URL = 'https://paste.centos.org'
 FPASTE_URL = 'https://paste.centos.org/api/create?' + APIKEY
+DISCUSSION_URL = 'https://discussion.fedoraproject.org'
 
 # cmd name, command, command2 fallback, command3 fallback, ...
 release_cmdlist = [
@@ -784,23 +785,27 @@ def main():
         'yaml': 'yaml'
     }
 
-    usage = """\
+    usage = f"""\
 Usage: %%prog [OPTION]... [FILE]...
-  Send text file(s), stdin, or clipboard to the Fedora community pastebin at %s and return the URL.
+  Send single or multiple text files, stdin, generated diagnostics or clipboard to the Fedora community pastebin at
+  {SERVER_URL} and return the URL.
 
   It is often useful to be able to easily paste text to the Fedora Pastebin at
-  http://paste.fedoraproject.org and this simple utility will do that and
-  return the resulting URL so that people may examine the output. This can
-  hopefully help folks who are for some reason stuck without a graphical
-  interface, working remotely, or any other reason they may be unable to paste
-  something into the pastebin using a web browser.
-
+  {SERVER_URL} and this utility will do that and return the resulting URL so that people may examine the output. This
+  can hopefully help folks who are, for some reason, stuck without a graphical interface, working remotely, or any other
+  reason they may be unable to paste something into the pastebin using a web browser.
+  
+  In addition, fpaste can also execute a variety diagnostic commands on the users machine and offer to upload them to
+  the Fedora community pastebin or leave them easily available on the users machines for manual entry into the Fedora
+  Discussion Forums at {DISCUSSION_URL}.
+    
   Examples:
   %%prog file1.txt file2.txt
   dmesg | %%prog
   (prog1; prog2; prog3) | fpaste
   %%prog --sysinfo --confirm
-  %%prog -t "debug output" -l python foo.py""" % SERVER_URL
+  %%prog -t "debug output" -l python foo.py
+  %%prog --disk-info --printonly"""
 
     parser = OptionParser(usage=usage, version='%prog ' + VERSION)
     parser.add_option(
@@ -813,7 +818,7 @@ Usage: %%prog [OPTION]... [FILE]...
     parser.add_option('', '--proxy', dest='proxy', help=SUPPRESS_HELP)
 
     # pastebin-specific options first
-    fpasteOrg_group = OptionGroup(parser, "paste.fedoraproject.org Options")
+    fpasteOrg_group = OptionGroup(parser, f"{SERVER_URL} Options")
     fpasteOrg_group.add_option(
         '-t',
         '--title',
@@ -877,7 +882,7 @@ Usage: %%prog [OPTION]... [FILE]...
         '',
         '--fullpath',
         dest='fullpath',
-        help='use pathname VS basename for file description(s)',
+        help='use the full pathname VS the basename for file descriptions',
         action="store_true",
         default=False)
     fpasteProg_group.add_option(
