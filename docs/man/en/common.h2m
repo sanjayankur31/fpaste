@@ -1,16 +1,16 @@
 .SH "EXAMPLES"
 .TP 
-Paste file foo.txt at paste.fedoraproject.org
+Paste file foo.txt at https://paste.centos.org
 .IP 
 \fBfpaste foo.txt\fR
 .TP 
-Paste output of ifconfig to paste.fedoraproject.org with description "my network config"
+Paste output of ifconfig to https://paste.centos.org with description "my network config"
 .IP 
-\fBifconfig | fpaste \fR
+\fBifconfig | fpaste --title "my network config"\fR
 .TP 
-Paste mycode.py to paste.fedoraproject.org with description as "problem with foo" and language "python"
+Paste mycode.py to https://paste.centos.org with description as "problem with foo" and language "python"
 .IP 
-\fBfpaste \-l python mycode.py\fR
+\fBfpaste \-l python mycode.py -t "problem with foo"\fR
 .TP 
 Paste mouse\-selected text from the primary X selection clipboard, and then overwrite the same clipboard with the returned fpaste URL
 .IP 
@@ -25,14 +25,14 @@ To paste the output of more than one program and/or file at a time, use the foll
 \fBfpaste <(lsusb) <(lspci)\fR
 .br 
 
-\fBfpaste <(fdisk \-l) /etc/grub.conf \fR
+\fBfpaste <(fdisk \-l) /etc/grub2.cfg \fR
 .br 
-\fB(fdisk \-l ; cat /etc/grub.conf) | fpaste \fR
+\fB(fdisk \-l ; cat /etc/grub2.cfg) | fpaste \fR
 .br 
 
-\fB(uname \-a ; yum repolist) | fpaste\fR
+\fB(uname \-a ; dnf repolist) | fpaste\fR
 .TP 
-Gather and paste various information about the running system. The info collected should be practically anonymous, and you may use the \-\-printonly or \-\-confirm options to preview what would be sent. paste.fedoraproject.org URLs are also practically anonymous ([a\-zA\-Z0\-9]**4 == 14,776,336 combinations), so you may also preview it instead before giving the link out.
+Gather and paste various information about the running system. The info collected should be practically anonymous, and you may use the \-\-printonly or \-\-confirm options to preview what would be sent. https://paste.centos.org URLs are also practically anonymous ([a\-zA\-Z0\-9]**4 == 14,776,336 combinations), so you may also preview it instead before giving the link out.
 .IP 
 \fBfpaste \-\-sysinfo\fR
 .br 
