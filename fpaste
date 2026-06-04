@@ -17,15 +17,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import argparse
 import os
-import sys
-import urllib.request
-import urllib.parse
-import urllib.error
 import subprocess
-from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
 from subprocess import CalledProcessError
-
 
 VERSION = '0.5.0.1'
 USER_AGENT = 'fpaste/' + VERSION
@@ -45,177 +44,186 @@ release_cmdlist = [
 ]
 
 kernel_cmdlist = [
-    ('Kernel', '''uname -r'''
+    ('Kernel', '''/usr/bin/uname -r'''
      ),
-    ('Kernel cmdline', '''cat /proc/cmdline'''
+    ('Kernel cmdline', '''/usr/bin/cat /proc/cmdline'''
      ),
 ]
 
 desktop_cmdlist = [
     ('Desktop(s) Running',
-     '''ps -eo comm= | grep -E '(gnome-session|startkde|startactive|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session|mate-session|lxqt-session|cinnamon|lxdm-session|awesome|phosh|sway|Hyperland)' '''
+     '''/usr/bin/ps -eo comm= | /usr/bin/grep -E '(gnome-session|startkde|startactive|xfce.?-session|fluxbox|blackbox|hackedbox|ratpoison|enlightenment|icewm-session|od-session|wmaker|wmx|openbox-lxde|openbox-gnome-session|openbox-kde-session|mwm|e16|fvwm|xmonad|sugar-session|mate-session|lxqt-session|cinnamon|lxdm-session|awesome|phosh|sway|Hyperland|kwin_wayland)' '''
      ),
     ('Desktop(s) Installed',
-     '''ls -m /usr/share/{xsessions,wayland-sessions}/ | sed 's/\\.desktop//g' '''
+     '''/usr/bin/ls -m /usr/share/{xsessions,wayland-sessions}/ | /usr/bin/sed 's/\\.desktop//g' '''
      ),
     ('Session Type',
-     '''env | grep 'XDG_SESSION_TYPE' | sed 's/.*=//' '''
+     '''/usr/bin/env | /usr/bin/grep 'XDG_SESSION_TYPE' | /usr/bin/sed 's/.*=//' '''
      ),
 ]
 
 cpu_cmdlist = [
-('CPU Model',
-     '''grep 'model name' /proc/cpuinfo | awk -F: '{print $2}' | uniq -c |
-     sed -re 's/^ +//' ''',
-     '''grep 'model name' /proc/cpuinfo'''
+    ('CPU Model',
+     '''/usr/bin/grep 'model name' /proc/cpuinfo | /usr/bin/awk -F: '{print $2}' | /usr/bin/uniq -c | /usr/bin/sed -re 's/^ +//' ''',
+     '''/usr/bin/grep 'model name' /proc/cpuinfo'''
      ),
     ('64-bit Support',
-     '''grep -q ' lm ' /proc/cpuinfo && echo Yes || echo No'''
+     '''/usr/bin/grep -q ' lm ' /proc/cpuinfo && /usr/bin/echo Yes || /usr/bin/echo No'''
      ),
     ('Hardware Virtualization Support',
-     '''grep -Eq '(vmx|svm)' /proc/cpuinfo && echo Yes || echo No'''
+     '''/usr/bin/grep -Eq '(vmx|svm)' /proc/cpuinfo && /usr/bin/echo Yes || /usr/bin/echo No'''
      ),
 ]
 
 selinux_cmdlist = [
-   ('SELinux Status',
-     '''sestatus''',
+    ('SELinux Status',
+     '''/usr/bin/sestatus''',
      '''/usr/sbin/sestatus''',
-     '''getenforce''',
-     '''grep -v '^#' /etc/sysconfig/selinux'''
+     '''/usr/bin/getenforce''',
+     '''/usr/bin/grep -v '^#' /etc/sysconfig/selinux'''
      ),
     ('SELinux Errors',
-     '''selinuxenabled && journalctl --no-hostname --since yesterday |grep avc: | grep -Eo comm="[^ ]+" | sort |uniq -c |sort -rn'''
+     '''/usr/bin/selinuxenabled && /usr/bin/journalctl --no-hostname --since yesterday | /usr/bin/grep avc: | /usr/bin/grep -Eo comm="[^ ]+" | /usr/bin/sort | /usr/bin/uniq -c | /usr/bin/sort -rn'''
      ),
 ]
 
 mem_cmdlist = [
-    ('Memory usage', '''free -hm''', 'free'
+    ('Memory usage', '''/usr/bin/free -hm''', 'free'
      ),
-    ('ZRAM usage', '''zramctl --output-all'''
+    ('ZRAM usage', '''/usr/bin/zramctl --output-all'''
      ),
 ]
 
 perf_cmdlist = [
-    ('Load average',       '''uptime'''
+    ('Load average', '''/usr/bin/uptime'''
      ),
     ('Pressure Stall Information',
-     '''grep -R . /proc/pressure/'''
+     '''/usr/bin/grep -R . /proc/pressure/'''
      ),
-    ('Top 5 CPU hogs', '''ps axuScnh | awk '$2!=''' + str(os.getpid()) + '''' | sort -rnk3 | head -5'''
+    ('Top 5 CPU hogs', '''/usr/bin/ps axuScnh | /usr/bin/awk '$2!=''' + str(
+        os.getpid()) + '''' | /usr/bin/sort -rnk3 | /usr/bin/head -5'''
      ),
-    ('Top 5 Memory hogs', '''ps axuScnh | sort -rnk4 | head -5'''
+    ('Top 5 Memory hogs', '''/usr/bin/ps axuScnh | /usr/bin/sort -rnk4 | /usr/bin/head -5'''
      ),
 ]
 
 storage_cmdlist = [
-    ('block devices', '''lsblk -o NAME,FSTYPE,SIZE,FSUSE%,MOUNTPOINT,UUID,MIN-IO,SCHED,DISC-GRAN,MODEL'''
+    ('block devices', '''/usr/bin/lsblk -o NAME,FSTYPE,SIZE,FSUSE%,MOUNTPOINT,UUID,MIN-IO,SCHED,DISC-GRAN,MODEL'''
      ),
 ]
 
 pci_cmdlist = [
-    ('PCI devices', '''lspci -nn''', '''/sbin/lspci -nn''', '''lspci''', '''/sbin/lspci'''
+    ('PCI devices', '''/usr/bin/lspci -nn''', '''/sbin/lspci -nn''', '''/usr/bin/lspci''', '''/sbin/lspci'''
      ),
 ]
 
 pci_verbose_cmdlist = [
-    ('PCI devices', '''lspci -vvnnk''', '''/sbin/lspci -vvnnkk'''
+    ('PCI devices', '''/usr/bin/lspci -vvnnk''', '''/sbin/lspci -vvnnkk'''
      ),
 ]
 
 usb_cmdlist = [
-    ('USB devices', '''lsusb''', '''/sbin/lsusb'''
+    ('USB devices', '''/usr/bin/lsusb''', '''/sbin/lsusb'''
      ),
 ]
 
 usb_verbose_cmdlist = [
-    ('USB devices', '''lsusb -vv -t''', '''/sbin/lsusb -vv -t'''
+    ('USB devices', '''/usr/bin/lsusb -vv -t''', '''/sbin/lsusb -vv -t'''
      ),
 ]
 
 audio_cmdlist = [
-    ('PCI Audio devices', '''lspci |  grep -i -E 'audio' | cut -b1-7 | xargs -i lspci -vnnks {} | grep -v "<access denied>"'''
+    ('PCI Audio devices',
+     '''/usr/bin/lspci | /usr/bin/grep -i -E 'audio' | /usr/bin/cut -b1-7 | /usr/bin/xargs -i /usr/bin/lspci -vnnks {} | /usr/bin/grep -v "<access denied>"'''
      ),
-    ('Audio devices', '''cat /proc/asound/cards'''
+    ('Audio devices', '''/usr/bin/cat /proc/asound/cards'''
      ),
-    ('User audio services', '''systemctl --user --no-pager status wireplumber pipewire* | sed "s/$(hostname)/ahost/"'''
+    ('User audio services',
+     '''/usr/bin/systemctl --user --no-pager status wireplumber pipewire* | /usr/bin/sed "s/$(hostname)/ahost/"'''
      ),
 ]
 
 gpu_cmdlist = [
-    ('PCI Video Card', '''lspci |  grep -i -E 'vga' | cut -b1-7 | xargs -i lspci -vnnks {} | grep -v "<access denied>"'''
+    ('PCI Video Card',
+     '''/usr/bin/lspci | /usr/bin/grep -i -E 'vga' | /usr/bin/cut -b1-7 | /usr/bin/xargs -i /usr/bin/lspci -vnnks {} | /usr/bin/grep -v "<access denied>"'''
      ),
-    ('GL Support', '''glxinfo -B | grep -E "OpenGL version|OpenGL renderer"'''
+    ('GL Support', '''/usr/bin/glxinfo -B | /usr/bin/grep -E "OpenGL version|OpenGL renderer"'''
      ),
 ]
 
 drm_cmdlist = [
     ('DRM Information',
-     '''journalctl -k -b --no-hostname | grep -o 'kernel:.*drm.*$' | cut -d ' ' -f 2- '''
+     '''/usr/bin/journalctl -k -b --no-hostname | /usr/bin/grep -o 'kernel:.*drm.*$' | /usr/bin/cut -d ' ' -f 2- '''
      ),
 ]
 
 xorg_cmdlist = [
-     ('Xorg modules',
-     '''grep LoadModule /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log | cut -d \\" -f 2 | xargs'''
+    ('Xorg modules',
+     '''/usr/bin/grep LoadModule /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log | /usr/bin/cut -d \\" -f 2 | /usr/bin/xargs'''
      ),
     ('Xorg errors',
-     '''grep '^\\[.*(EE)' /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log | cut -d ':' -f 2- '''
+     '''/usr/bin/grep '^\\[.*(EE)' /var/log/Xorg.0.log ~/.local/share/xorg/Xorg.0.log | /usr/bin/cut -d ':' -f 2- '''
      ),
 ]
 
 dnf_cmdlist = [
     ('DNF Repositories',
-     '''dnf repolist''',
-     '''ls -l /etc/yum.repos.d''',
-     '''grep -v '^#' /etc/yum.conf'''
+     '''/usr/bin/dnf repolist''',
+     '''/usr/bin/ls -l /etc/yum.repos.d''',
+     '''/usr/bin/grep -v '^#' /etc/yum.conf'''
      ),
-    ('DNF Extras',         '''dnf -C list extras'''
+    ('DNF Extras', '''/usr/bin/dnf -C list extras'''
      ),
-    ('Last 20 packages installed', '''rpm -qa --nodigest --nosignature --last | head -20'''),
+    ('Last 20 packages installed', '''/usr/bin/rpm -qa --nodigest --nosignature --last | /usr/bin/head -20'''),
     # ('Installed packages', '''rpm -qa --nodigest --nosignature | sort''', '''dpkg -l''') ]
 ]
 
 efiboot_cmdlist = [
-   ('EFI boot manager output', '''efibootmgr -v'''
-    ),
+    ('EFI boot manager output', '''/usr/bin/efibootmgr -v'''
+     ),
 ]
 
 reboot_cmdlist = [
-    ('Last few reboots',   '''last -x -n10 reboot runlevel'''
+    ('Last few reboots', '''/usr/bin/last -x -n10 reboot runlevel'''
      ),
 ]
 
 kernelbuffer_cmdlist = [
-    ('Kernel buffer tail', '''journalctl --no-hostname -k --lines 50'''
+    ('Kernel buffer tail', '''/usr/bin/journalctl --no-hostname -k --lines 50'''
      ),
 ]
 
 net_cmdlist = [
-    ('PCI Network devices', '''lspci |  grep -i -E 'net' | cut -b1-7 | xargs -i lspci -vnnks {} | grep -v "<access denied>"'''
+    ('PCI Network devices',
+     '''/usr/bin/lspci | /usr/bin/grep -i -E 'net' | /usr/bin/cut -b1-7 | /usr/bin/xargs -i lspci -vnnks {} | /usr/bin/grep -v "<access denied>"'''
      ),
-    ('Network status', '''ip -br addr | awk '{print $1" " $2}' | column -t'''
+    ('Network status', '''/usr/bin/ip -br addr | /usr/bin/awk '{print $1" " $2}' | /usr/bin/column -t'''
      ),
 ]
 
 btrfs_cmdlist = [
-    ('btrfs usage', '''btrfs filesystem usage -T /'''
+    ('btrfs usage', '''/usr/bin/btrfs filesystem usage -T /'''
      ),
-    ('btrfs-progs', '''rpm -q btrfs-progs'''
+    ('btrfs-progs', '''/usr/bin/rpm -q btrfs-progs'''
      ),
-    ('btrfs mounts', '''grep btrfs /proc/mounts'''
+    ('btrfs mounts', '''/usr/bin/grep btrfs /proc/mounts'''
      ),
-    ('FSUUID', '''findmnt -n -o UUID $(stat -c '%m' "/")'''
+    ('FSUUID', '''/usr/bin/findmnt -n -o UUID $(stat -c '%m' "/")'''
      ),
-    ('btrfs allocations', '''FSUUID=$(findmnt -n -o UUID $(stat -c '%m' "/")); grep -R . /sys/fs/btrfs/"$FSUUID"/allocation/ | sed "s/^.*allocation//"'''
+    ('btrfs allocations',
+     '''FSUUID=$(/usr/bin/findmnt -n -o UUID $(/usr/bin/stat -c '%m' "/")); /usr/bin/grep -R . /sys/fs/btrfs/"$FSUUID"/allocation/ | /usr/bin/sed "s/^.*allocation//"'''
      ),
-    ('btrfs features', '''FSUUID=$(findmnt -n -o UUID $(stat -c '%m' "/")); grep -R . /sys/fs/btrfs/"$FSUUID"/features/ | sed "s/^.*features//"'''
+    ('btrfs features',
+     '''FSUUID=$(/usr/bin/findmnt -n -o UUID $(/usr/bin/stat -c '%m' "/")); /usr/bin/grep -R . /sys/fs/btrfs/"$FSUUID"/features/ | /usr/bin/sed "s/^.*features//"'''
      ),
-    ('btrfs checksum', '''FSUUID=$(findmnt -n -o UUID $(stat -c '%m' "/")); cat /sys/fs/btrfs/"$FSUUID"/checksum'''
+    ('btrfs checksum',
+     '''FSUUID=$(f/usr/bin/indmnt -n -o UUID $(/usr/bin/stat -c '%m' "/")); /usr/bin/cat /sys/fs/btrfs/"$FSUUID"/checksum'''
      ),
-    ('Kernel messages', '''journalctl -k -o short-monotonic --no-hostname | grep "Linux version\\| ata\\|Btrfs\\|BTRFS\\|] hd\\| scsi\\| sd\\| sdhci\\| mmc\\| nvme\\| usb\\| vd"'''
+    ('Kernel messages',
+     '''/usr/bin/journalctl -k -o short-monotonic --no-hostname | /usr/bin/grep "Linux version\\| ata\\|Btrfs\\|BTRFS\\|] hd\\| scsi\\| sd\\| sdhci\\| mmc\\| nvme\\| usb\\| vd"'''
      ),
-   ]
+]
+
 
 def is_text(text, maxCheck=100, pctPrintable=0.75):
     """
@@ -240,7 +248,7 @@ def is_text(text, maxCheck=100, pctPrintable=0.75):
             nprintable += 1
         i += inc
     pct = float(nprintable) / ncheck
-    return (pct >= pctPrintable)
+    return pct >= pctPrintable
 
 
 def confirm(prompt="OK?"):
@@ -248,7 +256,7 @@ def confirm(prompt="OK?"):
     prompt += " [y/N]: "
     try:
         ans = input(prompt)
-    except EOFError:    # already read sys.stdin and hit EOF
+    except EOFError:  # already read sys.stdin and hit EOF
         # rebind sys.stdin to user tty (unix-only)
         try:
             mytty = os.ttyname(sys.stdout.fileno())
@@ -291,21 +299,19 @@ def paste(text, options):
     if pasteSizeKiB >= 512:
         print(
             "WARNING: your paste size (%.1fKiB) is very large and may be rejected by the server. A pastebin is NOT a file hosting service!" %
-            (pasteSizeKiB),
+            pasteSizeKiB,
             file=sys.stderr)
     # verify that it's most likely *non-binary* data being sent.
     if not is_text(text):
-        print(
-            "WARNING: your paste looks a lot like binary data instead of text.",
-            file=sys.stderr)
+        print("WARNING: your paste looks a lot like binary data instead of text.", file=sys.stderr)
         if not confirm("Send binary data anyway?"):
             return False
 
     req = urllib.request.Request(
         url=FPASTE_URL,
         data=data.encode('ascii'),
-        headers={
-            'User-agent': USER_AGENT})
+        headers={'User-agent': USER_AGENT}
+    )
     if options.proxy:
         if options.debug:
             print("Using proxy: %s" % options.proxy, file=sys.stderr)
@@ -318,7 +324,7 @@ def paste(text, options):
         if hasattr(e, 'reason'):
             print("Error Uploading: %s" % e.reason, file=sys.stderr)
         elif hasattr(e, 'code'):
-            print("Server Error: %d - %s" % (e.code, e.msg), file=sys.stderr)
+            print("Server Error: %d - %s" % (e.code, e.reason), file=sys.stderr)
             if options.debug:
                 print(f.read())
         return False
@@ -347,25 +353,29 @@ def sysinfo(show_stderr=False, show_successful_cmds=True,
     """
     Get general system related info.
     """
-    return getinfo(release_cmdlist + cpu_cmdlist + kernel_cmdlist + desktop_cmdlist + selinux_cmdlist + mem_cmdlist + perf_cmdlist + storage_cmdlist + pci_cmdlist + usb_cmdlist + gpu_cmdlist + drm_cmdlist + xorg_cmdlist + audio_cmdlist + net_cmdlist + kernelbuffer_cmdlist + reboot_cmdlist + dnf_cmdlist + efiboot_cmdlist)
+    return getinfo(
+        release_cmdlist + cpu_cmdlist + kernel_cmdlist + desktop_cmdlist + selinux_cmdlist + mem_cmdlist + perf_cmdlist + storage_cmdlist + pci_cmdlist + usb_cmdlist + gpu_cmdlist + drm_cmdlist + xorg_cmdlist + audio_cmdlist + net_cmdlist + kernelbuffer_cmdlist + reboot_cmdlist + dnf_cmdlist + efiboot_cmdlist)
 
 
 def sysinfo_short(show_stderr=False, show_successful_cmds=True,
-            show_failed_cmds=True):
+                  show_failed_cmds=True):
     """
     Get shortened system related info.
     """
-    return getinfo(release_cmdlist + cpu_cmdlist + kernel_cmdlist + desktop_cmdlist + mem_cmdlist + storage_cmdlist + pci_cmdlist + usb_cmdlist + gpu_cmdlist + audio_cmdlist + net_cmdlist)
+    return getinfo(
+        release_cmdlist + cpu_cmdlist + kernel_cmdlist + desktop_cmdlist + mem_cmdlist + storage_cmdlist + pci_cmdlist + usb_cmdlist + gpu_cmdlist + audio_cmdlist + net_cmdlist)
+
 
 def pci_verbose_info(show_stderr=False, show_successful_cmds=True,
-            show_failed_cmds=True):
+                     show_failed_cmds=True):
     """
     Get verbose listing of PCI devices.
     """
     return getinfo(release_cmdlist + kernel_cmdlist + pci_verbose_cmdlist)
 
+
 def usb_verbose_info(show_stderr=False, show_successful_cmds=True,
-            show_failed_cmds=True):
+                     show_failed_cmds=True):
     """
     Get verbose listing of USB devices.
     """
@@ -373,7 +383,7 @@ def usb_verbose_info(show_stderr=False, show_successful_cmds=True,
 
 
 def audioinfo(show_stderr=False, show_successful_cmds=True,
-            show_failed_cmds=True):
+              show_failed_cmds=True):
     """
     Get general audio info.
     """
@@ -381,7 +391,7 @@ def audioinfo(show_stderr=False, show_successful_cmds=True,
 
 
 def videoinfo(show_stderr=False, show_successful_cmds=True,
-            show_failed_cmds=True):
+              show_failed_cmds=True):
     """
     Get general video info.
     """
@@ -397,7 +407,7 @@ def netinfo(show_stderr=False, show_successful_cmds=True,
 
 
 def diskinfo(show_stderr=False, show_successful_cmds=True,
-            show_failed_cmds=True):
+             show_failed_cmds=True):
     """
     Get general disk related info.
     """
@@ -462,7 +472,7 @@ def getinfo(cmdlist, show_stderr=False, show_successful_cmds=True,
                       '" AND "'.join(
                           cmds[
                               1:])),
-                        out))
+                     out))
             else:
                 si.append(('%s' % cmdname, out))
     print(" ", end='\n', file=sys.stderr)
@@ -479,28 +489,29 @@ def getinfo(cmdlist, show_stderr=False, show_successful_cmds=True,
     return sistr
 
 
-def summarize_text(text):
-    # use beginning/middle/end content snippets as a description summary. 120 char limit
-    # "36chars ... 36chars ... 36chars" == 118 chars
-    # TODO: nuking whitespace in huge text files might be expensive; optimize
-    # for b/m/e segments only
-    sniplen = 36
-    seplen = len(" ... ")
-    tsum = ""
-    text = " ".join(text.split())   # nuke whitespace
-    tlen = len(text)
-
-    if tlen < sniplen + seplen:
-        tsum += text
-    if tlen >= sniplen + seplen:
-        tsum += text[0:sniplen] + " ..."
-    if tlen >= (sniplen * 2) + seplen:
-        tsum += " " + text[tlen / 2 - (sniplen / 2):(tlen / 2) + (sniplen / 2)] + " ..."
-    if tlen >= (sniplen * 3) + (seplen * 2):
-        tsum += " " + text[-sniplen:]
-    # print >> sys.stderr, str(len(tsum)) + ": " + tsum
-
-    return tsum
+# This code is never used. Obsolete now, it seems, but it's been commented rather than removed.
+# def summarize_text(text):
+#     # use beginning/middle/end content snippets as a description summary. 120 char limit
+#     # "36chars ... 36chars ... 36chars" == 118 chars
+#     # OLD_TODO: nuking whitespace in huge text files might be expensive; optimize
+#     # for b/m/e segments only
+#     sniplen = 36
+#     seplen = len(" ... ")
+#     tsum = ""
+#     text = " ".join(text.split()) # nuke whitespace
+#     tlen = len(text)
+#
+#     if tlen < sniplen + seplen:
+#         tsum += text
+#     if tlen >= sniplen + seplen:
+#         tsum += text[0:sniplen] + " ..."
+#     if tlen >= (sniplen * 2) + seplen:
+#         tsum += " " + text[tlen / 2 - (sniplen / 2):(tlen / 2) + (sniplen / 2)] + " ..."
+#     if tlen >= (sniplen * 3) + (seplen * 2):
+#         tsum += " " + text[-sniplen:]
+#     # print >> sys.stderr, str(len(tsum)) + ": " + tsum
+#
+#     return tsum
 
 
 def main():
@@ -785,8 +796,7 @@ def main():
         'yaml': 'yaml'
     }
 
-    usage = f"""\
-Usage: %%prog [OPTION]... [FILE]...
+    usage = f"""{sys.argv[0]} [OPTION]... [FILE]...
   Send single or multiple text files, stdin, generated diagnostics or clipboard to the Fedora community pastebin at
   {SERVER_URL} and return the URL.
 
@@ -798,208 +808,90 @@ Usage: %%prog [OPTION]... [FILE]...
   In addition, fpaste can also execute a variety diagnostic commands on the users machine and offer to upload them to
   the Fedora community pastebin or leave them easily available on the users machines for manual entry into the Fedora
   Discussion Forums at {DISCUSSION_URL}.
-    
+  
   Examples:
-  %%prog file1.txt file2.txt
-  dmesg | %%prog
-  (prog1; prog2; prog3) | fpaste
-  %%prog --sysinfo --confirm
-  %%prog -t "debug output" -l python foo.py
-  %%prog --disk-info --printonly"""
+  {sys.argv[0]} file1.txt file2.txt
+  dmesg | {sys.argv[0]}
+  (prog1; prog2; prog3) | {sys.argv[0]}
+  {sys.argv[0]} --sysinfo --confirm
+  {sys.argv[0]} -t "debug output" -l python foo.py
+  {sys.argv[0]} --disk-info --printonly"""
 
-    parser = OptionParser(usage=usage, version='%prog ' + VERSION)
-    parser.add_option(
-        '',
-        '--debug',
-        dest='debug',
-        help=SUPPRESS_HELP,
-        action="store_true",
-        default=False)
-    parser.add_option('', '--proxy', dest='proxy', help=SUPPRESS_HELP)
+    parser = argparse.ArgumentParser(usage=usage, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('--version', action='version', version=f'{sys.argv[0]} ' + VERSION)
+    parser.add_argument('--debug', dest='debug', help=argparse.SUPPRESS, action='store_true', default=False)
+    parser.add_argument('--proxy', dest='proxy', help=argparse.SUPPRESS)
 
-    # pastebin-specific options first
-    fpasteOrg_group = OptionGroup(parser, f"{SERVER_URL} Options")
-    fpasteOrg_group.add_option(
-        '-t',
-        '--title',
-        dest='title',
-        help='title of paste; defaults to UNTITLED',
-        metavar='"TITLE"')
-    fpasteOrg_group.add_option(
-        '-a',
-        '--author',
-        dest='author',
-        help='author name; empty by default',
-        metavar='"AUTHOR"')
-    fpasteOrg_group.add_option(
-        '-r',
-        '--private',
-        dest='private',
-        help='make paste private; defaults to 1',
-        metavar='PRIVATE')
-    fpasteOrg_group.add_option(
-        '-l',
-        dest='lang',
-        help='language of content for syntax highlighting; default is "%default"; use "list" to show all ' + str(len(validSyntaxOpts)) + ' supported langs',
-        metavar='"LANGUAGE"')
-    fpasteOrg_group.add_option(
-        '-x',
-        dest='life',
-        help='life of paste in minutes; default is 1 day (maximum)',
-        metavar='LIFE')
+    # pastebin-specific options
+    fpasteOrg_group = parser.add_argument_group(f"{SERVER_URL} Options")
+    fpasteOrg_group.add_argument('-t', '--title', dest='title', help='title of paste; defaults to UNTITLED',
+                                 metavar='"TITLE"')
+    fpasteOrg_group.add_argument('-a', '--author', dest='author', help='author name; empty by default',
+                                 metavar='"AUTHOR"')
+    fpasteOrg_group.add_argument('-r', '--private', dest='private', help='make paste private; defaults to 1',
+                                 metavar='PRIVATE')
+    fpasteOrg_group.add_argument('-l', dest='lang',
+                                 help='language of content for syntax highlighting; default is "%(default)s"; use "list" to show all ' + str(
+                                     len(validSyntaxOpts)) + ' supported langs', metavar='"LANGUAGE"')
+    fpasteOrg_group.add_argument('-x', dest='life', help='life of paste in minutes; default is 1 day (maximum)',
+                                 metavar='LIFE')
 
-    parser.add_option_group(fpasteOrg_group)
     # other options
-    fpasteProg_group = OptionGroup(parser, "Input/Output Options")
-    fpasteProg_group.add_option(
-        '-i',
-        '--clipin',
-        dest='clipin',
-        help='read paste text from current X clipboard selection [requires: xsel]',
-        action="store_true",
-        default=False)
-    fpasteProg_group.add_option(
-        '-w',
-        '--wayland-clipin',
-        dest='wclipin',
-        help='read paste text from Wayland selection [requires the wl-clipboard package]',
-        action="store_true",
-        default=False)
-    fpasteProg_group.add_option(
-        '-o',
-        '--clipout',
-        dest='clipout',
-        help='save returned paste URL to all available clipboards',
-        action="store_true",
-        default=False)
-    fpasteProg_group.add_option(
-        '',
-        '--input-selection',
-        dest='selection',
-        help='specify which X clipboard to use. valid options: "primary" (default; middle-mouse-button paste), "secondary" (uncommon), or "clipboard" (ctrl-v paste)',
-        metavar='CLIP')
-    fpasteProg_group.add_option(
-        '',
-        '--fullpath',
-        dest='fullpath',
-        help='use the full pathname VS the basename for file descriptions',
-        action="store_true",
-        default=False)
-    fpasteProg_group.add_option(
-        '',
-        '--pasteself',
-        dest='pasteself',
-        help='paste this script itself',
-        action="store_true",
-        default=False)
-    fpasteProg_group.add_option(
-        '',
-        '--sysinfo',
-        dest='sysinfo',
-        help='paste system information',
-        action="store_true",
-        default=False)
-    fpasteProg_group.add_option(
-        '',
-        '--sysinfo-short',
-        dest='sysinfo_short',
-        help='paste shortened system information',
-        action="store_true",
-        default=False)
-    fpasteProg_group.add_option(
-        '',
-        '--audioinfo',
-        '--sysinfo-audio',
-        dest='audioinfo',
-        help='paste general audio information',
-        action="store_true",
-        default=False)
-    fpasteProg_group.add_option(
-        '',
-        '--videoinfo',
-        '--sysinfo-video',
-        dest='videoinfo',
-        help='paste general video information',
-        action="store_true",
-        default=False)
-    fpasteProg_group.add_option(
-        '',
-        '--diskinfo',
-        '--sysinfo-disk',
-        dest='diskinfo',
-        help='paste general disk information',
-        action="store_true",
-        default=False)
-    fpasteProg_group.add_option(
-        '',
-        '--netinfo',
-        '--sysinfo-net',
-        dest='netinfo',
-        help='paste general network information',
-        action="store_true",
-        default=False)
-    fpasteProg_group.add_option(
-        '',
-        '--dnfinfo',
-        '--sysinfo-dnf',
-        dest='dnfinfo',
-        help='paste repository and package information',
-        action="store_true",
-        default=False)
-    fpasteProg_group.add_option(
-        '',
-        '--pci-verbose',
-        '--sysinfo-pci-verbose',
-        dest='pci_verbose_info',
-        help='paste verbose pci information',
-        action="store_true",
-        default=False)
-    fpasteProg_group.add_option(
-        '',
-        '--usb-verbose',
-        '--sysinfo-usb-verbose',
-        dest='usb_verbose_info',
-        help='paste verbose usb information',
-        action="store_true",
-        default=False)
-    fpasteProg_group.add_option(
-        '',
-        '--btrfsinfo',
-        '--sysinfo-btrfs',
-        dest='btrfsinfo',
-        help='paste btrfs related system information',
-        action="store_true",
-        default=False)
-    fpasteProg_group.add_option(
-        '',
-        '--printonly',
-        dest='printonly',
-        help='print paste, but do not send',
-        action="store_true",
-        default=False)
-    fpasteProg_group.add_option(
-        '',
-        '--confirm',
-        dest='confirm',
-        help='print paste, and prompt for confirmation before sending',
-        action="store_true",
-        default=False)
-    fpasteProg_group.add_option(
-        '',
-        '--raw-url',
-        dest='rawurl',
-        help='print raw url',
-        action="store_true",
-        default=False)
-    parser.add_option_group(fpasteProg_group)
+    fpasteProg_group = parser.add_argument_group("Input/Output Options")
+    fpasteProg_group.add_argument('-i', '--clipin', dest='clipin',
+                                  help='read paste text from current X clipboard selection [requires: xsel]',
+                                  action='store_true', default=False)
+    fpasteProg_group.add_argument('-w', '--wayland-clipin', dest='wclipin',
+                                  help='read paste text from Wayland selection [requires the wl-clipboard package]',
+                                  action='store_true', default=False)
+    fpasteProg_group.add_argument('-o', '--clipout', dest='clipout',
+                                  help='save returned paste URL to all available clipboards', action='store_true',
+                                  default=False)
+    fpasteProg_group.add_argument('--input-selection', dest='selection',
+                                  help='specify which X clipboard to use. valid options: "primary" (default; middle-mouse-button paste), "secondary" (uncommon), or "clipboard" (ctrl-v paste)',
+                                  metavar='CLIP')
+    fpasteProg_group.add_argument('--fullpath', dest='fullpath',
+                                  help='use the full pathname VS the basename for file descriptions',
+                                  action='store_true', default=False)
+    fpasteProg_group.add_argument('--pasteself', dest='pasteself', help='paste this script itself', action='store_true',
+                                  default=False)
+    fpasteProg_group.add_argument('--sysinfo', dest='sysinfo', help='paste system information', action='store_true',
+                                  default=False)
+    fpasteProg_group.add_argument('--sysinfo-short', dest='sysinfo_short', help='paste shortened system information',
+                                  action='store_true', default=False)
+    fpasteProg_group.add_argument('--audioinfo', '--sysinfo-audio', dest='audioinfo',
+                                  help='paste general audio information', action='store_true', default=False)
+    fpasteProg_group.add_argument('--videoinfo', '--sysinfo-video', dest='videoinfo',
+                                  help='paste general video information', action='store_true', default=False)
+    fpasteProg_group.add_argument('--diskinfo', '--sysinfo-disk', dest='diskinfo',
+                                  help='paste general disk information', action='store_true', default=False)
+    fpasteProg_group.add_argument('--netinfo', '--sysinfo-net', dest='netinfo',
+                                  help='paste general network information', action='store_true', default=False)
+    fpasteProg_group.add_argument('--dnfinfo', '--sysinfo-dnf', dest='dnfinfo',
+                                  help='paste repository and package information', action='store_true', default=False)
+    fpasteProg_group.add_argument('--pci-verbose', '--sysinfo-pci-verbose', dest='pci_verbose_info',
+                                  help='paste verbose pci information', action='store_true', default=False)
+    fpasteProg_group.add_argument('--usb-verbose', '--sysinfo-usb-verbose', dest='usb_verbose_info',
+                                  help='paste verbose usb information', action='store_true', default=False)
+    fpasteProg_group.add_argument('--btrfsinfo', '--sysinfo-btrfs', dest='btrfsinfo',
+                                  help='paste btrfs related system information', action='store_true', default=False)
+    fpasteProg_group.add_argument('--printonly', dest='printonly', help='print paste, but do not send',
+                                  action='store_true', default=False)
+    fpasteProg_group.add_argument('--confirm', dest='confirm',
+                                  help='print paste, and prompt for confirmation before sending', action='store_true',
+                                  default=False)
+    fpasteProg_group.add_argument('--raw-url', dest='rawurl', help='print raw url', action='store_true', default=False)
 
-# Let default be anonymous.
-#    p = subprocess.Popen('whoami', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-#    (out, err) = p.communicate ()
-#    if p.returncode == 0 and out:
-#        user = out[0:-1]
-#    else:
-#        print >> sys.stderr, "WARNING Could not run whoami. Posting anonymously."
+    # positional files
+    parser.add_argument('files', nargs='*')
+
+    # Let default be anonymous.
+    #    p = subprocess.Popen('whoami', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    #    (out, err) = p.communicate ()
+    #    if p.returncode == 0 and out:
+    #        user = out[0:-1]
+    #    else:
+    #        print >> sys.stderr, "WARNING Could not run whoami. Posting anonymously."
 
     parser.set_defaults(
         lang='text',
@@ -1009,7 +901,9 @@ Usage: %%prog [OPTION]... [FILE]...
         private="1",
         author=""
     )
-    (options, args) = parser.parse_args()
+
+    options = parser.parse_args()
+    args = options.files
 
     if options.lang.lower() == 'list':
         print('Valid language syntax options:')
@@ -1028,7 +922,8 @@ Usage: %%prog [OPTION]... [FILE]...
     if (options.clipin or options.wclipin) and args:
         parser.error(
             "Sending both clipboard contents AND files is not supported. Use -i OR -w OR filename(s)")
-    for optk, optv, opts in [('language', options.lang, validSyntaxOpts), ('clipboard selection', options.selection, validClipboardSelectionOpts)]:
+    for optk, optv, opts in [('language', options.lang, validSyntaxOpts),
+                             ('clipboard selection', options.selection, validClipboardSelectionOpts)]:
         if optv not in opts:
             parser.error(
                 "'%s' is not a valid %s option.\n\tVALID OPTIONS: %s" %
@@ -1061,7 +956,7 @@ Usage: %%prog [OPTION]... [FILE]...
     # combined
     text = ""
     if options.clipin:
-        xselcmd = 'xsel -o --%s' % options.selection
+        xselcmd = '/usr/bin/xsel -o --%s' % options.selection
         # text = os.popen(xselcmd).read()
         p = subprocess.Popen(
             xselcmd,
@@ -1078,7 +973,7 @@ Usage: %%prog [OPTION]... [FILE]...
         if not text:
             parser.error("%s clipboard is empty" % options.selection)
     if options.wclipin:
-        cmd = 'wl-paste'
+        cmd = '/usr/bin/wl-paste'
         # text = os.popen(xselcmd).read()
         p = subprocess.Popen(
             cmd,
@@ -1117,7 +1012,7 @@ Usage: %%prog [OPTION]... [FILE]...
         text = dnfinfo(options.debug)
     elif options.btrfsinfo:
         text = btrfsinfo(options.debug)
-    elif not args:   # read from stdin if no file args supplied
+    elif not args:  # read from stdin if no file args supplied
         try:
             input_text = sys.stdin.buffer.read()
             text += input_text.decode("utf-8", "replace")
@@ -1130,7 +1025,7 @@ Usage: %%prog [OPTION]... [FILE]...
         for i, f in enumerate(args):
             if not os.access(f, os.R_OK):
                 parser.error("file '%s' is not readable" % f)
-            if (len(args) > 1):     # separate multiple files with header
+            if len(args) > 1:  # separate multiple files with header
                 text += '#' * 78 + '\n'
                 text += '### file %d of %d: %s\n' % (i + 1,
                                                      len(args),
@@ -1145,15 +1040,16 @@ Usage: %%prog [OPTION]... [FILE]...
         try:
             if is_text(text):
                 # when piped to less, sometimes fails with [Errno 32] Broken
-                # pipe
-                print(text)
+                # pipe. We also avoid mentioning the full path to the binary being used to reduce the text output amount
+                # (marginally!)
+                print(text.replace("/usr/bin/", ""))
             else:
                 print("DATA")
         except IOError:
             pass
-    if options.printonly:   # print only what would be sent, and exit
+    if options.printonly:  # print only what would be sent, and exit
         sys.exit(0)
-    elif options.confirm:   # print what would be sent, and ask for permission
+    elif options.confirm:  # print what would be sent, and ask for permission
         if not confirm("OK to send?"):
             sys.exit(1)
 
@@ -1168,7 +1064,7 @@ Usage: %%prog [OPTION]... [FILE]...
             else:
                 # Copy the url in all the valid clipboard options
                 for selection in validClipboardSelectionOpts:
-                    xselcmd = 'xsel -i --%s' % selection
+                    xselcmd = '/usr/bin/xsel -i --%s' % selection
                     p = subprocess.Popen(
                         xselcmd,
                         shell=True,
@@ -1189,7 +1085,7 @@ Usage: %%prog [OPTION]... [FILE]...
                     'OOPS - the clipboard options currently depend on "/usr/bin/wl-copy", which does not appear to be installed',
                     file=sys.stderr)
             else:
-                wcmd = ['wl-copy', url]
+                wcmd = ['/usr/bin/wl-copy', url]
                 try:
                     subprocess.run(wcmd, check=True)
                 except CalledProcessError as cpe:
@@ -1212,7 +1108,7 @@ Usage: %%prog [OPTION]... [FILE]...
 
     if options.pasteself:
         print(
-            "install fpaste to local ~/bin dir by running:    mkdir -p ~/bin; curl " + url + "/raw -o ~/bin/fpaste && chmod +x ~/bin/fpaste",
+            "install fpaste to your ~/bin directory by running:    mkdir -p ~/bin; curl " + url + "/raw -o ~/bin/fpaste && chmod +x ~/bin/fpaste",
             file=sys.stderr)
 
     sys.exit(0)

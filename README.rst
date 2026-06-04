@@ -1,7 +1,7 @@
 fpaste
 ------
 fpaste is a command-line front-end for the Fedora Pastebin service at
-paste.fedoraproject.org.  It allows easy uploading of multiple files, or of copy&pasted
+https://paste.centos.org.  It allows easy uploading of multiple files, or of copy&pasted
 text from stdin, without requiring a web browser. A unique fpaste link is
 returned, which can then be given to others who are offering help.
 
@@ -10,7 +10,7 @@ returned, which can then be given to others who are offering help.
     e.g.:
     [joeuser@localhost ~]$ fpaste /etc/httpd/conf/httpd.conf
     Uploading...
-    http://paste.fedoraproject.org/rorn/
+    https://paste.centos.org/view/bc989030
 
 
 Upstream
@@ -26,8 +26,7 @@ Why?
 - A GUI browser like firefox might be inaccessible.
 - A TUI browser like lynx might be too cumbersome.
 - Multiple files can be fpasted.
-- It's often faster & more convenient to use the cli than to copy/paste in a
-  browser's textarea.
+- It's often faster & more convenient to use the cli than to copy/paste in a browser's textarea.
 - Why not?
 
 
