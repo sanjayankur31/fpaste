@@ -16,7 +16,7 @@ returned, which can then be given to others who are offering help.
 Upstream
 ========
 
-The source code is hosted at https://pagure.io/fpaste where primary development will occur. Please file issues here. A mirror is also maintained at https://github.com/sanjayankur31/fpaste where you can open pull requests.
+The source code is hosted at https://codeberg.org/sanjay_ankur/fpaste where primary development will occur. Please file issues here. A mirror is also maintained at https://github.com/sanjayankur31/fpaste where you can open pull requests.
 
 Why?
 ====
